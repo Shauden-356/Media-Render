@@ -1,99 +1,114 @@
-# Media Zipper (Render version, with video downloader)
+# Media Zipper (desktop app for Windows and macOS)
 
-A website + backend that, given a page address:
+A desktop app that, given a web page address:
 
-1. **Scans the page** with a headless browser (Playwright) and lists its images, audio and video.
+1. **Scans the page** with a headless browser and lists its images, audio and video.
 2. **Zips** the files you pick.
-3. **Downloads videos** — HLS / `.m3u8` streams and direct files — and converts them to **MP4 or MKV**
-   using **FFmpeg**, **yt-dlp** and a Playwright "sniffer" that finds the real stream address.
+3. **Downloads videos**: HLS / `.m3u8` streams, direct files, and the sites yt-dlp supports (YouTube included),
+   saved as **MP4 or MKV**.
 
-Everything runs in one Docker container on Render.
+Everything runs on your own computer with your own internet connection. The app starts a small server
+that only this computer can reach (`127.0.0.1`) and shows it in its window. FFmpeg and yt-dlp are included.
 
-## Deploy on Render (no local setup needed)
-1. Push the contents of this folder to a GitHub repo (`Dockerfile` must be in the top level).
-2. Render dashboard → **New → Blueprint** → pick the repo (it reads `render.yaml`).
-   Or **New → Web Service** → Runtime **Docker**, instance type **Standard (2 GB)**, health check `/healthz`.
-3. When asked for `APP_PASSWORD`, set one. Without it, anyone who finds the URL can use your server's bandwidth.
-   The browser shows a login box; the username can be anything.
-4. Deploy, then open the `onrender.com` address.
+## Installing (for people you share it with)
+Send them to the download page, https://shauden-356.github.io/Media-Render/, or the
+[latest release](https://github.com/Shauden-356/Media-Render/releases/latest). The files are:
 
-Free/Starter instances (512 MB) will crash when Chromium starts. Use **Standard** or larger.
+| Computer | File |
+|---|---|
+| Windows 10/11 | `Media-Zipper-win-x64.exe` (installer) |
+| Mac with Apple Silicon (M1 or later) | `Media-Zipper-mac-arm64.dmg` |
+| Mac with Intel | `Media-Zipper-mac-x64.dmg` |
+
+The app isn't signed with a paid Apple or Microsoft certificate, so the first launch shows a warning:
+- **Windows:** "Windows protected your PC" → **More info** → **Run anyway**.
+- **macOS:** open the `.dmg` and drag Media Zipper into Applications. The first time you open it, macOS says it
+  can't verify the app → click **Done**, then **System Settings → Privacy & Security** → scroll down →
+  **Open Anyway**.
+
+The page scanner uses Microsoft Edge (built into Windows) or Google Chrome. If neither is installed, the app
+downloads a small headless browser on first start, which takes about a minute. Until it's ready, scans fall back to a basic mode.
+
+## YouTube sign-in
+Usually not needed from a home connection. If YouTube says *"Sign in to confirm you're not a bot"*, open the
+**YouTube** menu and pick the browser you're signed in to YouTube with, or choose an exported `cookies.txt` file.
+Close that browser before downloading so its cookies can be read. Chrome on Windows encrypts its cookies in
+a way yt-dlp often can't read, so use Firefox there if Chrome doesn't work.
 
 ## How a video download works ("Auto" method)
 | You give it | Tries, in order |
 |---|---|
 | an `.m3u8` address | HLS + FFmpeg → yt-dlp |
 | a direct video file | Direct file (+ FFmpeg) → yt-dlp |
-| a normal web page | Playwright opens it, plays the video and records the stream/file it requests → HLS + FFmpeg / direct (longest stream wins, so ads and trailers are skipped) → yt-dlp on the page itself |
+| a normal web page | Browser opens it, plays the video and records the stream/file it requests → HLS + FFmpeg / direct (longest stream wins, so ads and trailers are skipped) → yt-dlp on the page itself |
 
 You can also force a method in the **Method** menu: *HLS + FFmpeg*, *yt-dlp*, *Direct file*, *FFmpeg only*.
-
-Downloads run as **background jobs**: the page shows progress, and the finished file is available for
-`FILE_TTL_MINUTES` (default 20) before being deleted. Nothing needs one long HTTP request, so
-hour-long videos work.
+When a video is ready, the app asks where to save it.
 
 - Streams are copied (`-c copy`), not re-encoded, so conversion is fast. Only if copying is impossible for a
-  direct file is it re-encoded (disable with `ALLOW_TRANSCODE=0`).
-- Referer is sent automatically (the scanned page), which fixes the common "403 Forbidden" on streams.
-- AES-128 encrypted HLS is handled by yt-dlp. DRM (Widevine/FairPlay) is not supported by anything legitimate.
+  direct file is it re-encoded.
+- The scanned page is sent as Referer, which fixes the common "403 Forbidden" on streams.
+- AES-128 encrypted HLS is handled by yt-dlp. DRM (Widevine/FairPlay) is not supported.
 
-## Environment variables
+## Download page and releases
+- **Download page:** `docs/index.html`, served by GitHub Pages at https://shauden-356.github.io/Media-Render/.
+  Its buttons always point at the newest release, so the page never needs editing.
+- **Publishing a new version:** raise `version` in `package.json`, commit, then
+  ```
+  git tag v6.0.1
+  git push origin main v6.0.1
+  ```
+  The *Release* workflow (`.github/workflows/release.yml`) builds the three installers on GitHub and attaches them
+  to a new release. That takes about 10 minutes; watch it in the repo's **Actions** tab.
+
+## Building the app (developers)
+Requires Node.js 20 or later.
+
+```
+npm install
+npm start            # run from source (downloads FFmpeg + yt-dlp for this computer into vendor/)
+npm run dist:mac     # dist/*.dmg for Apple Silicon and Intel
+npm run dist:win     # dist/*.exe installer for Windows x64
+```
+
+Both builds work from a Mac. Building on Windows works for `dist:win`; `dist:mac` needs a Mac.
+`npm run server` runs only the server (no window) at http://localhost:10000, which helps when debugging.
+
+If `npm start` exits immediately from a VS Code terminal, run `unset ELECTRON_RUN_AS_NODE` first.
+VS Code sets that variable, and it makes Electron behave like plain Node.
+
+### Settings (environment variables, optional)
 | Name | Default | Meaning |
 |---|---|---|
-| APP_PASSWORD | *(none)* | Turns on a password prompt for the whole site |
-| JOB_TIME_LIMIT_SECONDS | 3600 | Longest a single video job may run |
-| MAX_DOWNLOAD_MB | 2048 | Largest single video |
-| MAX_CONCURRENT_JOBS | 2 | Video jobs running at once (others wait in line) |
+| JOB_TIME_LIMIT_SECONDS | 21600 | Longest a single video job may run (6 h) |
+| MAX_DOWNLOAD_MB | 51200 | Largest single video (50 GB) |
+| MAX_CONCURRENT_JOBS | 3 | Video jobs running at once (others wait in line) |
 | MAX_CONCURRENT_SCANS | 2 | Headless-browser scans at once |
-| FILE_TTL_MINUTES | 20 | How long finished files are kept |
-| SCAN_BUDGET_MS | 55000 | Time allowed for a page scan |
-| ZIP_TIME_LIMIT_SECONDS | 52 | Longest a zip build may run (`render.yaml` sets 300) |
+| FILE_TTL_MINUTES | 120 | How long finished files wait to be saved before cleanup |
 | ALLOW_TRANSCODE | 1 | Allow re-encoding as a last resort |
-| ALLOW_FFMPEG_DIRECT | 1 | Allow the "FFmpeg only" method (see security) |
-| JOBS_DIR | /tmp/mz-jobs | Where temporary files live |
-
-## API
-- `POST /api/scan` `{url}` → `{page,title,items,streams,notes}`
-- `POST /api/zip` `{urls,page}` → zip file
-- `POST /api/jobs` `{url,page?,method?,container?,name?}` → `{id,...}` (`method`: auto|hls|direct|ytdlp|ffmpeg; `container`: mp4|mkv)
-- `GET /api/jobs/:id` → `{status,stage,percent,error,filename,size,method,notes}` (`status`: queued|running|done|error|cancelled)
-- `GET /api/jobs/:id/file` → the finished video (supports resume)
-- `DELETE /api/jobs/:id` → cancel
+| CHROME_PATH | *(auto)* | Use this browser for page scans |
 
 ## Project layout
 ```
-Dockerfile  render.yaml  package.json  server.js
-api/    scan.js  zip.js  jobs.js
-lib/    scanner.js (Playwright)  jobs.js (job engine: HLS, direct, yt-dlp, ffmpeg)
-        feed.js  hls.js  extract.js  net.js  config.js
-public/ index.html
-desktop/hls_downloader.py   (no time limit; run on your own PC with FFmpeg installed)
+package.json   server.js
+docs/       index.html (download page for GitHub Pages)
+.github/workflows/release.yml (builds installers when a v* tag is pushed)
+electron/   main.js (desktop window, menus, bundled binaries)
+api/        scan.js  zip.js  jobs.js
+lib/        scanner.js (Playwright)  jobs.js (job engine: HLS, direct, yt-dlp, ffmpeg)
+            feed.js  hls.js  extract.js  net.js  config.js
+public/     index.html
+scripts/    fetch-binaries.mjs (downloads FFmpeg + yt-dlp into vendor/ for each platform)
+desktop/hls_downloader.py   (older standalone Python tool, not part of the app)
 ```
-
-## Keeping it working
-- **Playwright version:** the `playwright` version in `package.json` and the tag in the `Dockerfile`
-  (`mcr.microsoft.com/playwright:v1.49.1-noble`) must always match. Change both together.
-- **yt-dlp** updates itself at start-up and once a day. If a site stops working, use
-  *Manual Deploy → Clear build cache & deploy* to pull the newest build.
-- **Disk:** big videos are written to the instance's temporary disk. For multi-GB videos attach a persistent
-  disk (see the commented block in `render.yaml`) and set `JOBS_DIR` to it.
 
 ## Troubleshooting
 - *"This stream is encrypted"* in the notes → Auto already falls back to yt-dlp; if that fails too it is DRM.
 - *Page scan finds no video* → paste the page address and press **Download video from this address**
   (lets yt-dlp try it), or pick the *yt-dlp* method.
-- *HTTP 403 on segments* → the site checks Referer/cookies/signed URLs that expire; scan the page again and retry immediately.
-- *"Sign in to confirm you're not a bot"* (YouTube) → yt-dlp needs a logged-in session. In a private browser
-  window, sign in to YouTube, export cookies for youtube.com in Netscape `cookies.txt` format (e.g. the
-  "Get cookies.txt LOCALLY" extension), then close that window without signing out. On Render add it as a
-  **Secret File** named `cookies.txt` and set `YTDLP_COOKIES=/etc/secrets/cookies.txt`. Running locally you can
-  instead set `YTDLP_COOKIES_FROM_BROWSER=chrome` (or firefox, edge…). Re-export if it starts failing again.
-- *Out of memory / scan crashes* → lower `MAX_CONCURRENT_SCANS` to 1 or upgrade the instance.
-
-## Security notes
-- Node-fetched requests (scan, zip, HLS segments, direct files) refuse private/internal addresses on every redirect.
-- **yt-dlp and "FFmpeg only" open addresses themselves** and do not apply that check to redirects or segments.
-  Keep `APP_PASSWORD` set; if the site will be public, set `ALLOW_FFMPEG_DIRECT=0` and remove `ytdlp` from the allowed methods in `api/jobs.js`.
+- *"returned a web page instead of a playlist"* / *HTTP 403* → the `.m3u8` link expired or is tied to the browser that
+  opened it. Paste the page address instead so the app finds a fresh link.
+- *A site that worked stops working* → yt-dlp updates itself at start-up; restart the app.
 
 ## Legal
 Only download media you own or have permission to save. Respect each site's terms.

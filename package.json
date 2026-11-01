@@ -1,14 +1,55 @@
 {
-  "name": "media-zipper-render",
-  "version": "5.0.0",
+  "name": "media-zipper",
+  "productName": "Media Zipper",
+  "version": "6.0.0",
+  "description": "Find, zip and download images, audio and video from web pages.",
+  "author": "Shauden-356",
   "private": true,
   "type": "module",
+  "main": "electron/main.js",
   "engines": { "node": ">=20" },
-  "scripts": { "start": "node server.js" },
+  "scripts": {
+    "start": "node scripts/fetch-binaries.mjs && electron .",
+    "server": "node server.js",
+    "dist:mac": "node scripts/fetch-binaries.mjs darwin arm64 && node scripts/fetch-binaries.mjs darwin x64 && electron-builder --mac --arm64 --x64",
+    "dist:win": "node scripts/fetch-binaries.mjs win32 x64 && electron-builder --win --x64"
+  },
   "dependencies": {
     "archiver": "^7.0.1",
     "cheerio": "^1.0.0",
     "express": "^4.21.2",
-    "playwright": "1.49.1"
+    "playwright-core": "^1.64.1"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.shauden356.mediazipper",
+    "productName": "Media Zipper",
+    "artifactName": "Media-Zipper-${os}-${arch}.${ext}",
+    "directories": { "output": "dist" },
+    "files": [
+      "electron/**",
+      "server.js",
+      "api/**",
+      "lib/**",
+      "public/**",
+      "package.json"
+    ],
+    "asarUnpack": ["node_modules/playwright-core/**"],
+    "extraResources": [{ "from": "vendor/${os}-${arch}", "to": "bin" }],
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.utilities",
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "win": { "target": ["nsis"] },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

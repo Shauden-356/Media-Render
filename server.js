@@ -1,5 +1,3 @@
-import crypto from 'node:crypto';
-import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,73 +6,54 @@ import scan from './api/scan.js';
 import zip from './api/zip.js';
 import { startJob, jobStatus, jobFile, jobCancel } from './api/jobs.js';
 import { initJobs } from './lib/jobs.js';
+import { prepareScanner } from './lib/scanner.js';
 import { cfg } from './lib/config.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const app = express();
-app.disable('x-powered-by');
-app.use(express.json({ limit: '1mb' }));
 
-// Optional password (HTTP Basic auth). Set APP_PASSWORD on Render; any username works.
-const password = process.env.APP_PASSWORD;
-if (password) {
-  const digest = (s) => crypto.createHash('sha256').update(s).digest();
-  app.use((req, res, next) => {
-    if (req.path === '/healthz') return next();
-    const [scheme, token] = (req.headers.authorization || '').split(' ');
-    if (scheme === 'Basic' && token) {
-      const given = Buffer.from(token, 'base64').toString().split(':').slice(1).join(':');
-      if (crypto.timingSafeEqual(digest(given), digest(password))) return next();
-    }
-    res.set('WWW-Authenticate', 'Basic realm="Media Zipper"').status(401).send('Password required.');
-  });
-}
+// Starts the local server. Listens on this computer only (127.0.0.1), so downloads use
+// the user's own internet connection and nothing is reachable from other machines.
+// port 0 picks any free port. Resolves to the port actually used.
+export async function startServer({ port = 0, host = '127.0.0.1' } = {}) {
+  const app = express();
+  app.disable('x-powered-by');
+  app.use(express.json({ limit: '1mb' }));
 
-// Handlers use the same (req, res) shape as Vercel functions, which Express matches.
-const wrap = (handler) => (req, res) =>
-  Promise.resolve(handler(req, res)).catch((err) => {
-    console.error(err);
-    if (!res.headersSent) res.status(500).json({ error: 'Something went wrong on the server.' });
-    else res.destroy();
-  });
+  const wrap = (handler) => (req, res) =>
+    Promise.resolve(handler(req, res)).catch((err) => {
+      console.error(err);
+      if (!res.headersSent) res.status(500).json({ error: 'Something went wrong.' });
+      else res.destroy();
+    });
 
-app.post('/api/scan', wrap(scan));
-app.post('/api/zip', wrap(zip));
-app.post('/api/jobs', wrap(startJob));
-app.get('/api/jobs/:id', wrap(jobStatus));
-app.get('/api/jobs/:id/file', wrap(jobFile));
-app.delete('/api/jobs/:id', wrap(jobCancel));
-app.get('/healthz', (_req, res) => res.type('text').send('ok'));
-app.use(express.static(path.join(here, 'public')));
+  app.post('/api/scan', wrap(scan));
+  app.post('/api/zip', wrap(zip));
+  app.post('/api/jobs', wrap(startJob));
+  app.get('/api/jobs/:id', wrap(jobStatus));
+  app.get('/api/jobs/:id/file', wrap(jobFile));
+  app.delete('/api/jobs/:id', wrap(jobCancel));
+  app.use(express.static(path.join(here, 'public')));
 
-await initJobs();
+  await initJobs();
+  prepareScanner(); // in the background
 
-// Say whether yt-dlp will get cookies (names only, never values) so setup problems show in the logs.
-if (cfg.ytdlpCookies) {
-  try {
-    const rows = fs.readFileSync(cfg.ytdlpCookies, 'utf8').split('\n').map((l) => l.split('\t'));
-    const yt = rows.filter((r) => r.length >= 7 && /youtube\.com$/.test(r[0]));
-    const login = yt.filter((r) => /^(SID|__Secure-3PSID|LOGIN_INFO|SAPISID)$/.test(r[5])).map((r) => r[5]);
-    console.log(`yt-dlp cookies: ${cfg.ytdlpCookies}, ${yt.length} youtube.com cookies, login cookies: ${login.join(', ') || 'NONE (export while signed in)'}`);
-  } catch (err) {
-    console.log(`yt-dlp cookies: cannot read ${cfg.ytdlpCookies} (${err.message})`);
+  // Sites change often; keep yt-dlp current (at start, then daily). Only when the app
+  // manages its own yt-dlp copy; a system-wide install is left to its package manager.
+  if (cfg.ytdlpSelfUpdate) {
+    const update = () => spawn(cfg.ytdlp, ['-U'], { stdio: 'ignore' }).on('error', () => {});
+    update();
+    setInterval(update, 24 * 3600 * 1000).unref();
   }
-} else if (cfg.ytdlpCookiesFromBrowser) {
-  console.log(`yt-dlp cookies: from browser ${cfg.ytdlpCookiesFromBrowser}`);
-} else {
-  console.log('yt-dlp cookies: not set (YTDLP_COOKIES is empty), YouTube may ask to sign in');
+
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, host, () => resolve(server.address().port));
+    server.on('error', reject);
+    server.requestTimeout = 0; // long downloads are fine
+  });
 }
 
-// Sites change often; keep yt-dlp current (at boot, then daily).
-const updateYtdlp = () => {
-  if (!process.env.YTDLP_PATH) return;
-  spawn(cfg.ytdlp, ['-U'], { stdio: 'ignore' }).on('error', () => {});
-};
-updateYtdlp();
-setInterval(updateYtdlp, 24 * 3600 * 1000).unref();
-
-const port = Number(process.env.PORT) || 10000;
-const server = app.listen(port, '0.0.0.0', () => console.log(`Listening on ${port}`));
-server.requestTimeout = 0; // long downloads are fine
-server.headersTimeout = 65_000;
-server.keepAliveTimeout = 65_000;
+// `node server.js` runs it without the desktop window (open the printed address in a browser).
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const port = await startServer({ port: Number(process.env.PORT) || 10000 });
+  console.log(`Open http://localhost:${port}`);
+}

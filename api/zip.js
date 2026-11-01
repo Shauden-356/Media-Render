@@ -4,12 +4,12 @@ import { Readable } from 'node:stream';
 import { safeFetch } from '../lib/net.js';
 
 const MAX_FILES = 300;
-const MAX_FILE = 150 * 1024 * 1024; // 150 MB per file
-const MAX_TOTAL = 300 * 1024 * 1024; // 300 MB per zip
+const MAX_FILE = 1024 * 1024 * 1024; // 1 GB per file
+const MAX_TOTAL = 2 * 1024 * 1024 * 1024; // 2 GB per zip (the page holds the zip in memory)
 const BUFFER_LIMIT = 8 * 1024 * 1024; // files up to this size are read into memory
 const UNKNOWN_SIZE_LIMIT = 30 * 1024 * 1024; // files with no declared size
 const CONCURRENCY = 5;
-const TIME_BUDGET_MS = (Number(process.env.ZIP_TIME_LIMIT_SECONDS) || 52) * 1000;
+const TIME_BUDGET_MS = (Number(process.env.ZIP_TIME_LIMIT_SECONDS) || 1800) * 1000;
 
 const EXT_BY_TYPE = {
   'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp',
