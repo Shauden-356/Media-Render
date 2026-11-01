@@ -23,6 +23,8 @@ services:
         value: "300"
       - key: ALLOW_TRANSCODE
         value: "1"            # 0 = never re-encode (fail instead when stream-copy is impossible)
+      - key: YTDLP_COOKIES     # e.g. /etc/secrets/cookies.txt (add cookies.txt as a Secret File); fixes YouTube "not a bot" errors
+        sync: false
       - key: ALLOW_FFMPEG_DIRECT
         value: "1"            # 0 = disable the "FFmpeg only" method (see README, security notes)
     # Large videos need disk space. The default instance disk is small and temporary.

@@ -83,6 +83,11 @@ desktop/hls_downloader.py   (no time limit; run on your own PC with FFmpeg insta
 - *Page scan finds no video* → paste the page address and press **Download video from this address**
   (lets yt-dlp try it), or pick the *yt-dlp* method.
 - *HTTP 403 on segments* → the site checks Referer/cookies/signed URLs that expire; scan the page again and retry immediately.
+- *"Sign in to confirm you're not a bot"* (YouTube) → yt-dlp needs a logged-in session. In a private browser
+  window, sign in to YouTube, export cookies for youtube.com in Netscape `cookies.txt` format (e.g. the
+  "Get cookies.txt LOCALLY" extension), then close that window without signing out. On Render add it as a
+  **Secret File** named `cookies.txt` and set `YTDLP_COOKIES=/etc/secrets/cookies.txt`. Running locally you can
+  instead set `YTDLP_COOKIES_FROM_BROWSER=chrome` (or firefox, edge…). Re-export if it starts failing again.
 - *Out of memory / scan crashes* → lower `MAX_CONCURRENT_SCANS` to 1 or upgrade the instance.
 
 ## Security notes
