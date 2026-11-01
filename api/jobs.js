@@ -1,6 +1,5 @@
 import { assertPublicUrl } from '../lib/net.js';
 import { createJob, getJob, cancelJob, publicJob } from '../lib/jobs.js';
-import { isYouTubeUrl } from '../lib/youtube.js';
 
 const METHODS = new Set(['auto', 'hls', 'direct', 'ytdlp', 'ffmpeg']);
 const CONTAINERS = new Set(['mp4', 'mkv']);
@@ -9,9 +8,6 @@ const CONTAINERS = new Set(['mp4', 'mkv']);
 export async function startJob(req, res) {
   const b = req.body || {};
   const url = typeof b.url === 'string' ? b.url.trim() : '';
-  if (isYouTubeUrl(url)) {
-    return res.status(400).json({ error: 'YouTube downloads are not supported here.' });
-  }
   try {
     await assertPublicUrl(url);
   } catch (err) {

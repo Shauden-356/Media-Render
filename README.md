@@ -36,7 +36,6 @@ hour-long videos work.
   direct file is it re-encoded (disable with `ALLOW_TRANSCODE=0`).
 - Referer is sent automatically (the scanned page), which fixes the common "403 Forbidden" on streams.
 - AES-128 encrypted HLS is handled by yt-dlp. DRM (Widevine/FairPlay) is not supported by anything legitimate.
-- YouTube is intentionally blocked (`lib/youtube.js`).
 
 ## Environment variables
 | Name | Default | Meaning |
@@ -66,7 +65,7 @@ hour-long videos work.
 Dockerfile  render.yaml  package.json  server.js
 api/    scan.js  zip.js  jobs.js
 lib/    scanner.js (Playwright)  jobs.js (job engine: HLS, direct, yt-dlp, ffmpeg)
-        feed.js  hls.js  extract.js  net.js  config.js  youtube.js
+        feed.js  hls.js  extract.js  net.js  config.js
 public/ index.html
 desktop/hls_downloader.py   (no time limit; run on your own PC with FFmpeg installed)
 ```
