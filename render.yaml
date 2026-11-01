@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: media-zipper
+    runtime: docker
+    plan: standard            # Chromium + FFmpeg need ~1-2 GB of RAM; free/starter will crash
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_PASSWORD     # optional but STRONGLY recommended: protects the site with a login prompt
+        sync: false           # Render asks you for the value in the dashboard
+      - key: JOB_TIME_LIMIT_SECONDS
+        value: "3600"         # longest one video download may run (1 hour)
+      - key: MAX_DOWNLOAD_MB
+        value: "2048"         # largest single video
+      - key: MAX_CONCURRENT_JOBS
+        value: "2"            # video downloads running at the same time
+      - key: MAX_CONCURRENT_SCANS
+        value: "2"            # headless-browser page scans at the same time
+      - key: FILE_TTL_MINUTES
+        value: "20"           # finished files are deleted after this long
+      - key: SCAN_BUDGET_MS
+        value: "60000"
+      - key: ZIP_TIME_LIMIT_SECONDS
+        value: "300"
+      - key: ALLOW_TRANSCODE
+        value: "1"            # 0 = never re-encode (fail instead when stream-copy is impossible)
+      - key: ALLOW_FFMPEG_DIRECT
+        value: "1"            # 0 = disable the "FFmpeg only" method (see README, security notes)
+    # Large videos need disk space. The default instance disk is small and temporary.
+    # Uncomment to attach a persistent disk (paid) and point JOBS_DIR at it:
+    # disk:
+    #   name: downloads
+    #   mountPath: /data
+    #   sizeGB: 10
+    # (then add an env var JOBS_DIR=/data/jobs)

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site media &amp; video downloader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eaf0f4;
+    --surface: #ffffff;
+    --ink: #12202b;
+    --muted: #55687a;
+    --line: #c5d3de;
+    --accent: #0b7a75;
+    --accent-ink: #ffffff;
+    --danger: #b3261e;
+    --thumb: #dde7ee;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101a21;
+      --surface: #17242d;
+      --ink: #e6eef3;
+      --muted: #94a8b8;
+      --line: #2b3d4a;
+      --accent: #3cc3bb;
+      --accent-ink: #06201f;
+      --danger: #ff8a80;
+      --thumb: #21323d;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    font-family: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  main { max-width: 1040px; margin: 0 auto; padding: 56px 20px 120px; }
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    margin: 0 0 14px;
+    max-width: 16ch;
+  }
+  .lede { color: var(--muted); font-size: 1.1rem; max-width: 52ch; margin: 0 0 32px; }
+
+  form.address {
+    display: flex;
+    gap: 0;
+    background: var(--surface);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  form.address:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
+  form.address input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 1.1rem;
+    padding: 18px 20px;
+    outline: none;
+  }
+  form.address input::placeholder { color: var(--muted); }
+  button {
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    border: 0;
+    border-radius: 0;
+    padding: 0 28px;
+    background: var(--ink);
+    color: var(--bg);
+  }
+  button:focus-visible, .chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: 0.55; cursor: progress; }
+
+  #status { margin: 18px 2px 0; min-height: 1.5em; color: var(--muted); }
+  #status.error { color: var(--danger); font-weight: 500; }
+
+  #results[hidden] { display: none; }
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    margin: 36px 0 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .bar h2 { font-size: 1.15rem; margin: 0 auto 0 0; font-weight: 600; word-break: break-word; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .linkbtn {
+    background: none;
+    color: var(--accent);
+    padding: 4px 2px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 14px;
+  }
+  .tile {
+    position: relative;
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .tile input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .tile .thumb {
+    aspect-ratio: 4 / 3;
+    background: var(--thumb);
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+  .tile .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .cap {
+    padding: 8px 10px 10px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tile .tick {
+    position: absolute;
+    top: 8px; left: 8px;
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 2px solid var(--ink);
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--accent-ink);
+  }
+  .tile:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .tile:has(input:checked) .tick { background: var(--accent); border-color: var(--accent); }
+  .tile:has(input:checked) .tick::after { content: "\2713"; }
+  .tile:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .dock {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+  .dock[hidden] { display: none; }
+  .dock .inner {
+    max-width: 1040px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .dock .count { margin-right: auto; font-weight: 500; }
+  .dock button.primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-radius: 10px;
+    padding: 12px 24px;
+  }
+  .streams { margin-top: 36px; }
+  .streams h3 { font-size: 1.15rem; margin: 0 0 6px; font-weight: 600; }
+  .streams ul { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+  .streams li {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 14px;
+    align-items: center;
+  }
+  .streams .src { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .streams .msg { grid-column: 1 / -1; font-size: 0.9rem; color: var(--muted); }
+  .streams .msg.error { color: var(--danger); }
+  .streams button { background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 9px 16px; }
+  .note { color: var(--muted); font-size: 0.9rem; margin-top: 28px; max-width: 70ch; }
+  .options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 14px; }
+  .options label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.95rem; }
+  select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  button.secondary { background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 9px 16px; }
+  #jobs { margin-top: 28px; }
+  #jobs[hidden] { display: none; }
+  #jobs h3 { font-size: 1.15rem; margin: 0 0 10px; font-weight: 600; }
+  #jobList { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  #jobList li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center; }
+  #jobList .src { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #jobList progress { grid-column: 1 / -1; width: 100%; height: 8px; accent-color: var(--accent); }
+  #jobList .msg { grid-column: 1 / -1; font-size: 0.9rem; color: var(--muted); }
+  #jobList .msg.error { color: var(--danger); }
+  #jobList a.save { background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 9px 16px; font-weight: 600; text-decoration: none; }
+  #jobList button { background: var(--ink); color: var(--bg); border-radius: 8px; padding: 8px 14px; }
+  @media (max-width: 520px) {
+    form.address { flex-direction: column; }
+    form.address button { padding: 14px; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .tile { transition: box-shadow 120ms ease, border-color 120ms ease; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Paste a page address. Get its media or its video.</h1>
+  <p class="lede">We scan the page for images, audio and video and zip what you pick. Streamed videos (HLS / .m3u8) are converted to MP4 or MKV with FFmpeg and yt-dlp.</p>
+
+  <form class="address" id="form">
+    <input id="url" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+           placeholder="https://example.com/gallery" aria-label="Page address" required>
+    <button id="scan" type="submit">Find media</button>
+  </form>
+  <div class="options">
+    <label>Save video as
+      <select id="container"><option value="mp4">MP4</option><option value="mkv">MKV</option></select>
+    </label>
+    <label>Method
+      <select id="method">
+        <option value="auto">Auto (recommended)</option>
+        <option value="hls">HLS + FFmpeg</option>
+        <option value="ytdlp">yt-dlp</option>
+        <option value="direct">Direct file</option>
+        <option value="ffmpeg">FFmpeg only</option>
+      </select>
+    </label>
+    <button type="button" class="secondary" id="grab">Download video from this address</button>
+  </div>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <section id="jobs" hidden>
+    <h3>Video downloads</h3>
+    <ul id="jobList"></ul>
+  </section>
+
+  <section id="results" hidden>
+    <div class="bar">
+      <h2 id="title"></h2>
+      <div class="chips" id="chips" role="group" aria-label="Filter by type"></div>
+      <button type="button" class="linkbtn" id="all">Select all shown</button>
+      <button type="button" class="linkbtn" id="none">Clear</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="streams" id="streams" hidden>
+      <h3>Videos found on the page</h3>
+      <p class="note" style="margin-top:0">Videos are copied into the format chosen above without re-encoding whenever possible. Files stay on the server for a short time after they finish.</p>
+      <ul id="streamList"></ul>
+    </div>
+    <p class="note" id="notes"></p>
+    <p class="note">Download only files you have the right to use.</p>
+  </section>
+</main>
+
+<div class="dock" id="dock" hidden>
+  <div class="inner">
+    <span class="count" id="count"></span>
+    <button type="button" class="primary" id="download">Download zip</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const form = $('#form'), urlEl = $('#url'), scanBtn = $('#scan'), statusEl = $('#status');
+  const results = $('#results'), grid = $('#grid'), chips = $('#chips'), dock = $('#dock');
+  const countEl = $('#count'), dlBtn = $('#download');
+
+  let page = '', items = [], streams = [], pageTitle = '', selected = new Set(), filter = 'all';
+
+  const setStatus = (msg, isError = false) => {
+    statusEl.textContent = msg;
+    statusEl.className = isError ? 'error' : '';
+  };
+
+  const normalize = (v) => {
+    v = v.trim();
+    return /^[a-z][a-z0-9+.-]*:\/\//i.test(v) ? v : 'https://' + v;
+  };
+
+  const visible = () => items.filter((i) => filter === 'all' || i.kind === filter);
+
+  function renderChips() {
+    const kinds = ['all', 'image', 'audio', 'video'];
+    chips.replaceChildren(...kinds
+      .map((k) => ({ k, n: k === 'all' ? items.length : items.filter((i) => i.kind === k).length }))
+      .filter(({ k, n }) => k === 'all' || n > 0)
+      .map(({ k, n }) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.setAttribute('aria-pressed', String(filter === k));
+        b.textContent = `${k === 'all' ? 'All' : k[0].toUpperCase() + k.slice(1)} ${n}`;
+        b.onclick = () => { filter = k; renderChips(); renderGrid(); };
+        return b;
+      }));
+  }
+
+  function renderGrid() {
+    grid.replaceChildren(...visible().map((it) => {
+      const label = document.createElement('label');
+      label.className = 'tile';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selected.has(it.url);
+      cb.setAttribute('aria-label', it.name);
+      cb.onchange = () => { cb.checked ? selected.add(it.url) : selected.delete(it.url); renderDock(); };
+      const tick = document.createElement('span');
+      tick.className = 'tick';
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      const fallback = () => { thumb.replaceChildren(document.createTextNode(it.kind)); };
+      if (it.kind === 'image') {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.referrerPolicy = 'no-referrer';
+        img.alt = '';
+        img.src = it.url;
+        img.onerror = fallback;
+        thumb.append(img);
+      } else {
+        fallback();
+      }
+      const cap = document.createElement('div');
+      cap.className = 'cap';
+      cap.textContent = it.name;
+      cap.title = it.url;
+      label.append(cb, tick, thumb, cap);
+      return label;
+    }));
+  }
+
+  function renderDock() {
+    const n = selected.size;
+    dock.hidden = items.length === 0;
+    countEl.textContent = n === 1 ? '1 file selected' : `${n} files selected`;
+    dlBtn.disabled = n === 0;
+  }
+
+  const containerEl = $('#container'), methodEl = $('#method'), jobsBox = $('#jobs'), jobList = $('#jobList');
+  const fmtSize = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+
+  // Starts a background download job and follows its progress until the file is ready.
+  async function startJob(label, url, ref) {
+    const li = document.createElement('li');
+    const name = document.createElement('div');
+    name.className = 'src';
+    name.textContent = label;
+    name.title = url;
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = 'Cancel';
+    const bar = document.createElement('progress');
+    bar.max = 100;
+    const msg = document.createElement('div');
+    msg.className = 'msg';
+    msg.textContent = 'Starting…';
+    li.append(name, cancel, bar, msg);
+    jobList.prepend(li);
+    jobsBox.hidden = false;
+
+    const stop = (text, isError) => {
+      bar.remove();
+      cancel.remove();
+      msg.textContent = text;
+      msg.className = 'msg' + (isError ? ' error' : '');
+    };
+
+    let id;
+    try {
+      const r = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url, page: ref || undefined, method: methodEl.value, container: containerEl.value,
+          name: pageTitle && ref === page ? pageTitle : label,
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `Could not start (HTTP ${r.status}).`);
+      id = j.id;
+    } catch (err) {
+      stop(err.message, true);
+      return;
+    }
+    cancel.onclick = () => { cancel.disabled = true; fetch('/api/jobs/' + id, { method: 'DELETE' }).catch(() => {}); };
+
+    const poll = async () => {
+      let j;
+      try {
+        const r = await fetch('/api/jobs/' + id);
+        j = await r.json();
+        if (!r.ok) throw new Error(j.error || `Lost track of this download (HTTP ${r.status}).`);
+      } catch (err) {
+        stop(err.message, true);
+        return;
+      }
+      const notes = (j.notes || []).join(' ');
+      if (j.status === 'done') {
+        stop('', false);
+        const a = document.createElement('a');
+        a.className = 'save';
+        a.href = `/api/jobs/${id}/file`;
+        a.textContent = `Save ${j.filename} (${fmtSize(j.size)})`;
+        li.insertBefore(a, msg);
+        msg.textContent = [j.method ? `Done using ${j.method}.` : '', notes].filter(Boolean).join(' ');
+        a.click();
+        return;
+      }
+      if (j.status === 'error') return stop([j.error, notes].filter(Boolean).join(' '), true);
+      if (j.status === 'cancelled') return stop('Cancelled.', false);
+      msg.textContent = [j.stage + (j.percent != null ? ` ${j.percent}%` : ''), notes].filter(Boolean).join(' ');
+      if (j.percent != null) bar.value = j.percent; else bar.removeAttribute('value');
+      setTimeout(poll, 1500);
+    };
+    poll();
+  }
+
+  const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'video'; } };
+
+  function renderStreams() {
+    const box = $('#streams'), list = $('#streamList');
+    const videos = [
+      ...items.filter((it) => it.kind === 'video').map((it) => ({ ...it, direct: true })),
+      ...streams,
+    ];
+    box.hidden = !videos.length;
+    list.replaceChildren(...videos.map((st) => {
+      const li = document.createElement('li');
+      const src = document.createElement('div');
+      src.className = 'src';
+      src.textContent = st.name;
+      src.title = st.url;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Download';
+      btn.onclick = () => startJob(st.name.replace(/\.[^.]+$/, '') || pageTitle || hostOf(page), st.url, page);
+      li.append(src, btn);
+      return li;
+    }));
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = normalize(urlEl.value);
+    if (/\.m3u8(?:$|[?#&])/i.test(url)) { startJob(hostOf(url) + '-stream', url, ''); return; } // playlist pasted directly
+    scanBtn.disabled = true;
+    results.hidden = true;
+    dock.hidden = true;
+    setStatus('Opening the page and scrolling through it to catch everything it loads. This can take up to a minute.');
+    try {
+      const r = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || `Scan failed (HTTP ${r.status}).`);
+      page = data.page;
+      items = data.items;
+      streams = data.streams || [];
+      pageTitle = data.title || '';
+      $('#notes').textContent = (data.notes || []).join(' ');
+      if (!items.length && !streams.length) {
+        setStatus(((data.notes || []).join(' ') + ' No downloadable images, audio or video found on that page.').trim(), true);
+        return;
+      }
+      selected = new Set(items.map((i) => i.url));
+      filter = 'all';
+      $('#title').textContent = data.title || new URL(page).hostname;
+      const found = [];
+      if (items.length) found.push(`${items.length} file${items.length === 1 ? '' : 's'}`);
+      if (streams.length) found.push(`${streams.length} streamed video${streams.length === 1 ? '' : 's'}`);
+      setStatus(`Found ${found.join(' and ')}.`);
+      results.hidden = false;
+      document.querySelector('.bar').hidden = !items.length;
+      grid.hidden = !items.length;
+      renderStreams();
+      renderChips();
+      renderGrid();
+      renderDock();
+    } catch (err) {
+      setStatus(err.message, true);
+    } finally {
+      scanBtn.disabled = false;
+    }
+  });
+
+  $('#grab').onclick = () => {
+    const url = normalize(urlEl.value);
+    if (!urlEl.value.trim()) { setStatus('Paste a page or video address first.', true); return; }
+    setStatus('');
+    startJob(hostOf(url) + '-video', url, '');
+  };
+
+  $('#all').onclick = () => { visible().forEach((i) => selected.add(i.url)); renderGrid(); renderDock(); };
+  $('#none').onclick = () => { visible().forEach((i) => selected.delete(i.url)); renderGrid(); renderDock(); };
+
+  dlBtn.addEventListener('click', async () => {
+    if (!selected.size) return;
+    dlBtn.disabled = true;
+    const label = dlBtn.textContent;
+    dlBtn.textContent = 'Building zip…';
+    setStatus('Downloading files and building the zip. Large selections can take a minute.');
+    try {
+      const r = await fetch('/api/zip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: [...selected], page }),
+      });
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data.error || `Download failed (HTTP ${r.status}).`);
+      }
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      const host = (() => { try { return new URL(page).hostname.replace(/^www\./, ''); } catch { return 'site'; } })();
+      a.href = URL.createObjectURL(blob);
+      a.download = `${host}-media.zip`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      setStatus('Zip downloaded. Check _report.txt inside it for any files that failed.');
+    } catch (err) {
+      setStatus(err.message, true);
+    } finally {
+      dlBtn.textContent = label;
+      renderDock();
+    }
+  });
+})();
+</script>
+</body>
+</html>
