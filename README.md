@@ -29,6 +29,16 @@ The app isn't signed with a paid Apple or Microsoft certificate, so the first la
 The page scanner uses Microsoft Edge (built into Windows) or Google Chrome. If neither is installed, the app
 downloads a small headless browser on first start, which takes about a minute. Until it's ready, scans fall back to a basic mode.
 
+## Updates
+The app checks for a new release when it starts and every 6 hours (also **Help → Check for Updates…**).
+It downloads the new version in the background, then offers **Restart now**; choosing *Later* installs it when you quit.
+- **Windows:** handled by `electron-updater` with the installer and `latest.yml` from the release.
+- **Mac:** the app downloads `Media-Zipper-mac-<arch>.zip` and swaps itself in place when it quits. This needs the
+  app to be in **Applications**. If it's run from the .dmg or Downloads, it offers a download link instead.
+  (Apple's built-in updater only accepts apps signed with a paid developer certificate.)
+
+Versions before 6.2.0 have no updater, so update those by hand once.
+
 ## YouTube sign-in
 Usually not needed from a home connection. If YouTube says *"Sign in to confirm you're not a bot"*, open the
 **YouTube** menu and pick the browser you're signed in to YouTube with, or choose an exported `cookies.txt` file.

@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkForUpdates, startAutoUpdates } from './updater.js';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const exe = process.platform === 'win32' ? '.exe' : '';
@@ -123,6 +124,15 @@ function buildMenu() {
     },
     { role: 'viewMenu' },
     { role: 'windowMenu' },
+    {
+      role: 'help',
+      submenu: [
+        { label: 'Check for Updates…', click: () => checkForUpdates({ manual: true }) },
+        { label: 'Download Page', click: () => shell.openExternal('https://shauden-356.github.io/Media-Render/') },
+        { type: 'separator' },
+        { label: `Version ${app.getVersion()}`, enabled: false },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -176,6 +186,7 @@ app.whenReady().then(async () => {
     const { startServer } = await import('../server.js');
     const port = await startServer();
     createWindow(port);
+    startAutoUpdates(() => win);
     app.on('activate', () => {
       if (!BrowserWindow.getAllWindows().length) createWindow(port);
     });

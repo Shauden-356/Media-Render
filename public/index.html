@@ -556,7 +556,7 @@
       const li = document.createElement('li');
       const src = document.createElement('div');
       src.className = 'src';
-      src.textContent = st.name;
+      src.textContent = st.played ? `${st.name} · the one the player used` : st.name;
       src.title = st.url;
       const btn = document.createElement('button');
       btn.type = 'button';

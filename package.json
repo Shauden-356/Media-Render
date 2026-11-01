@@ -1,7 +1,7 @@
 {
   "name": "media-zipper",
   "productName": "Media Zipper",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "description": "Find, zip and download images, audio and video from web pages.",
   "author": "Shauden-356",
   "private": true,
@@ -19,6 +19,7 @@
   "dependencies": {
     "archiver": "^7.0.1",
     "cheerio": "^1.0.0",
+    "electron-updater": "^6.8.11",
     "express": "^4.21.2",
     "playwright-core": "^1.64.1"
   },
@@ -52,7 +53,8 @@
     ],
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "category": "public.app-category.utilities",
       "identity": "-",
@@ -67,6 +69,11 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Shauden-356",
+      "repo": "Media-Render"
     }
   }
 }
