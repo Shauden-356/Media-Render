@@ -8,7 +8,7 @@ A desktop app that, given a web page address:
    saved as **MP4 or MKV**.
 
 Everything runs on your own computer with your own internet connection. The app starts a small server
-that only this computer can reach (`127.0.0.1`) and shows it in its window. FFmpeg and yt-dlp are included.
+that only this computer can reach (`127.0.0.1`) and shows it in its window. FFmpeg, ffprobe and yt-dlp are included.
 
 ## Installing (for people you share it with)
 Send them to the download page, https://shauden-356.github.io/Media-Render/, or the
@@ -43,6 +43,23 @@ a way yt-dlp often can't read, so use Firefox there if Chrome doesn't work.
 | a normal web page | Browser opens it, plays the video and records the stream/file it requests → HLS + FFmpeg / direct (longest stream wins, so ads and trailers are skipped) → yt-dlp on the page itself |
 
 You can also force a method in the **Method** menu: *HLS + FFmpeg*, *yt-dlp*, *Direct file*, *FFmpeg only*.
+YouTube and similar sites (Vimeo, TikTok, X, Instagram, Reddit, SoundCloud…) go straight to yt-dlp.
+
+### Download options
+| Option | What it does |
+|---|---|
+| **Save as: MP4** | H.264 video + AAC audio, which plays in every player (QuickTime, Windows, phones, TVs). On YouTube that means up to 1080p |
+| **Save as: MKV** | The best stream in any codec (VP9/AV1, up to 4K). Plays in VLC and most modern players |
+| **Save as: MP3 / M4A** | Sound only |
+| **Quality** | Caps the resolution (e.g. *Up to 720p*) for yt-dlp and HLS streams |
+| **Subtitles** | Embeds subtitles in your computer's language (auto-generated ones if there are no real ones) |
+| **Title, thumbnail & chapters** | Embeds the title, cover image and chapter marks |
+| **Skip sponsor segments** | Cuts sponsor, self-promotion and "subscribe" segments on YouTube (SponsorBlock) |
+
+The last three apply to sites yt-dlp handles. Your choices are remembered.
+
+When a download fails, open **Error details** under it to see why each method failed, including yt-dlp's own
+output. **Copy log** copies it all, for example to paste into an issue.
 When a video is ready, the app asks where to save it.
 
 - Streams are copied (`-c copy`), not re-encoded, so conversion is fast. Only if copying is impossible for a
@@ -98,7 +115,7 @@ api/        scan.js  zip.js  jobs.js
 lib/        scanner.js (Playwright)  jobs.js (job engine: HLS, direct, yt-dlp, ffmpeg)
             feed.js  hls.js  extract.js  net.js  config.js
 public/     index.html
-scripts/    fetch-binaries.mjs (downloads FFmpeg + yt-dlp into vendor/ for each platform)
+scripts/    fetch-binaries.mjs (downloads FFmpeg, ffprobe + yt-dlp into vendor/ for each platform)
 desktop/hls_downloader.py   (older standalone Python tool, not part of the app)
 ```
 

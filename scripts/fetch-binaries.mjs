@@ -1,6 +1,6 @@
-// Downloads the FFmpeg and yt-dlp binaries that get packed into the app.
+// Downloads the FFmpeg, ffprobe and yt-dlp binaries that get packed into the app.
 //   node scripts/fetch-binaries.mjs [platform] [arch]     (defaults: this computer)
-// Writes vendor/<mac|win>-<arch>/ffmpeg[.exe] and yt-dlp[.exe] (names match electron-builder's ${os}).
+// Writes vendor/<mac|win>-<arch>/ffmpeg, ffprobe and yt-dlp (+ .exe on Windows) (names match electron-builder's ${os}).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,9 +13,9 @@ const arch = process.argv[3] || process.arch;
 const FFMPEG = 'https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0';
 const YTDLP = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download';
 const sources = {
-  'darwin-arm64': { ffmpeg: `${FFMPEG}/ffmpeg-darwin-arm64.gz`, ytdlp: `${YTDLP}/yt-dlp_macos` },
-  'darwin-x64': { ffmpeg: `${FFMPEG}/ffmpeg-darwin-x64.gz`, ytdlp: `${YTDLP}/yt-dlp_macos` },
-  'win32-x64': { ffmpeg: `${FFMPEG}/ffmpeg-win32-x64.gz`, ytdlp: `${YTDLP}/yt-dlp.exe` },
+  'darwin-arm64': { ffmpeg: `${FFMPEG}/ffmpeg-darwin-arm64.gz`, ffprobe: `${FFMPEG}/ffprobe-darwin-arm64.gz`, ytdlp: `${YTDLP}/yt-dlp_macos` },
+  'darwin-x64': { ffmpeg: `${FFMPEG}/ffmpeg-darwin-x64.gz`, ffprobe: `${FFMPEG}/ffprobe-darwin-x64.gz`, ytdlp: `${YTDLP}/yt-dlp_macos` },
+  'win32-x64': { ffmpeg: `${FFMPEG}/ffmpeg-win32-x64.gz`, ffprobe: `${FFMPEG}/ffprobe-win32-x64.gz`, ytdlp: `${YTDLP}/yt-dlp.exe` },
 };
 const src = sources[`${platform}-${arch}`];
 if (!src) {
@@ -50,4 +50,5 @@ async function save(name, url, gz) {
 }
 
 await save('ffmpeg', src.ffmpeg, true);
+await save('ffprobe', src.ffprobe, true);
 await save('yt-dlp', src.ytdlp, false);

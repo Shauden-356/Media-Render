@@ -214,6 +214,9 @@
   .note { color: var(--muted); font-size: 0.9rem; margin-top: 28px; max-width: 70ch; }
   .options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 14px; }
   .options label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.95rem; }
+  .options input[type=checkbox] { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); }
+  .options .hint { color: var(--muted); font-size: 0.85rem; }
+  select:disabled { opacity: 0.5; }
   select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
   button.secondary { background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 9px 16px; }
   #jobs { margin-top: 28px; }
@@ -225,6 +228,14 @@
   #jobList progress { grid-column: 1 / -1; width: 100%; height: 8px; accent-color: var(--accent); }
   #jobList .msg { grid-column: 1 / -1; font-size: 0.9rem; color: var(--muted); }
   #jobList .msg.error { color: var(--danger); }
+  #jobList details.log { grid-column: 1 / -1; font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 8px; }
+  #jobList details.log summary { cursor: pointer; color: var(--muted); font-weight: 500; }
+  #jobList details.log ol { margin: 8px 0; padding-left: 1.3em; display: grid; gap: 10px; }
+  #jobList details.log li { display: list-item; background: none; border: 0; border-radius: 0; padding: 0; }
+  #jobList details.log .what { font-weight: 600; }
+  #jobList details.log pre { margin: 6px 0 0; padding: 8px 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-size: 0.8rem; color: var(--muted); }
+  #jobList details.log button.copy { background: none; color: var(--accent); padding: 0; font-weight: 500; }
   #jobList a.save { background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 9px 16px; font-weight: 600; text-decoration: none; }
   #jobList button { background: var(--ink); color: var(--bg); border-radius: 8px; padding: 8px 14px; }
   @media (max-width: 520px) {
@@ -239,7 +250,7 @@
 <body>
 <main>
   <h1>Paste a page address. Get its media or its video.</h1>
-  <p class="lede">We scan the page for images, audio and video and zip what you pick. Streamed videos (HLS / .m3u8) are converted to MP4 or MKV with FFmpeg and yt-dlp.</p>
+  <p class="lede">We scan the page for images, audio and video and zip what you pick. Videos, streams (.m3u8) and YouTube are saved as MP4, MKV, MP3 or M4A with FFmpeg and yt-dlp.</p>
 
   <form class="address" id="form">
     <input id="url" type="text" inputmode="url" autocomplete="off" spellcheck="false"
@@ -247,8 +258,24 @@
     <button id="scan" type="submit">Find media</button>
   </form>
   <div class="options">
-    <label>Save video as
-      <select id="container"><option value="mp4">MP4</option><option value="mkv">MKV</option></select>
+    <label>Save as
+      <select id="format">
+        <option value="mp4">MP4 video (plays everywhere)</option>
+        <option value="mkv">MKV video (best quality, up to 4K)</option>
+        <option value="mp3">MP3 audio only</option>
+        <option value="m4a">M4A audio only</option>
+      </select>
+    </label>
+    <label>Quality
+      <select id="quality">
+        <option value="">Best available</option>
+        <option value="2160">Up to 4K (2160p)</option>
+        <option value="1440">Up to 1440p</option>
+        <option value="1080">Up to 1080p</option>
+        <option value="720">Up to 720p</option>
+        <option value="480">Up to 480p</option>
+        <option value="360">Up to 360p</option>
+      </select>
     </label>
     <label>Method
       <select id="method">
@@ -260,6 +287,12 @@
       </select>
     </label>
     <button type="button" class="secondary" id="grab">Download video from this address</button>
+  </div>
+  <div class="options">
+    <label><input type="checkbox" id="subtitles"> Subtitles</label>
+    <label><input type="checkbox" id="metadata"> Title, thumbnail &amp; chapters</label>
+    <label><input type="checkbox" id="sponsorblock"> Skip sponsor segments</label>
+    <span class="hint">For YouTube and other sites yt-dlp supports.</span>
   </div>
   <div id="status" role="status" aria-live="polite"></div>
 
@@ -278,7 +311,7 @@
     <div class="grid" id="grid"></div>
     <div class="streams" id="streams" hidden>
       <h3>Videos found on the page</h3>
-      <p class="note" style="margin-top:0">Videos are copied into the format chosen above without re-encoding whenever possible. Files stay on the server for a short time after they finish.</p>
+      <p class="note" style="margin-top:0">Videos are copied into the format chosen above without re-encoding whenever possible. When one is ready, you choose where to save it.</p>
       <ul id="streamList"></ul>
     </div>
     <p class="note" id="notes"></p>
@@ -371,7 +404,59 @@
     dlBtn.disabled = n === 0;
   }
 
-  const containerEl = $('#container'), methodEl = $('#method'), jobsBox = $('#jobs'), jobList = $('#jobList');
+  const methodEl = $('#method'), jobsBox = $('#jobs'), jobList = $('#jobList');
+  const formatEl = $('#format'), qualityEl = $('#quality');
+  const checks = ['subtitles', 'metadata', 'sponsorblock'].map((id) => $('#' + id));
+
+  // Remember the download options between visits.
+  const saved = JSON.parse(localStorage.getItem('videoOptions') || '{}');
+  for (const el of [formatEl, qualityEl, methodEl]) if (saved[el.id] != null) el.value = saved[el.id];
+  for (const el of checks) el.checked = !!saved[el.id];
+  const syncOptions = () => {
+    const audio = /^(mp3|m4a)$/.test(formatEl.value);
+    qualityEl.disabled = audio;
+    $('#subtitles').disabled = audio;
+    const o = {};
+    for (const el of [formatEl, qualityEl, methodEl]) o[el.id] = el.value;
+    for (const el of checks) o[el.id] = el.checked;
+    localStorage.setItem('videoOptions', JSON.stringify(o));
+  };
+  for (const el of [formatEl, qualityEl, methodEl, ...checks]) el.addEventListener('change', syncOptions);
+  syncOptions();
+
+  // Why each method failed, in a fold-out under the message (with yt-dlp's own output).
+  function renderLog(li, log, failed) {
+    li.querySelector('details.log')?.remove();
+    if (!log || !log.length) return;
+    const d = document.createElement('details');
+    d.className = 'log';
+    const sum = document.createElement('summary');
+    sum.textContent = failed ? `Error details (${log.length})` : `${log.length} attempt${log.length > 1 ? 's' : ''} failed before this worked`;
+    const ol = document.createElement('ol');
+    for (const e of log) {
+      const item = document.createElement('li');
+      const what = document.createElement('span');
+      what.className = 'what';
+      what.textContent = `${e.method} failed: `;
+      item.append(what, document.createTextNode(e.error));
+      if (e.output) {
+        const pre = document.createElement('pre');
+        pre.textContent = e.output;
+        item.append(pre);
+      }
+      ol.append(item);
+    }
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'copy';
+    copy.textContent = 'Copy log';
+    copy.onclick = () => {
+      const text = log.map((e) => `${e.method} failed: ${e.error}${e.output ? '\n' + e.output : ''}`).join('\n\n');
+      navigator.clipboard.writeText(text).then(() => { copy.textContent = 'Copied'; setTimeout(() => (copy.textContent = 'Copy log'), 1500); });
+    };
+    d.append(sum, ol, copy);
+    li.append(d);
+  }
   const fmtSize = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
   // Starts a background download job and follows its progress until the file is ready.
@@ -406,7 +491,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url, page: ref || undefined, method: methodEl.value, container: containerEl.value,
+          url, page: ref || undefined, method: methodEl.value,
+          format: formatEl.value, quality: qualityEl.value,
+          subtitles: $('#subtitles').checked, metadata: $('#metadata').checked, sponsorblock: $('#sponsorblock').checked,
+          subLang: (navigator.language || 'en').slice(0, 2),
           name: pageTitle && ref === page ? pageTitle : label,
         }),
       });
@@ -438,10 +526,15 @@
         a.textContent = `Save ${j.filename} (${fmtSize(j.size)})`;
         li.insertBefore(a, msg);
         msg.textContent = [j.method ? `Done using ${j.method}.` : '', notes].filter(Boolean).join(' ');
+        renderLog(li, j.log, false);
         a.click();
         return;
       }
-      if (j.status === 'error') return stop([j.error, notes].filter(Boolean).join(' '), true);
+      if (j.status === 'error') {
+        stop([j.error, notes].filter(Boolean).join(' '), true);
+        renderLog(li, j.log, true);
+        return;
+      }
       if (j.status === 'cancelled') return stop('Cancelled.', false);
       msg.textContent = [j.stage + (j.percent != null ? ` ${j.percent}%` : ''), notes].filter(Boolean).join(' ');
       if (j.percent != null) bar.value = j.percent; else bar.removeAttribute('value');
