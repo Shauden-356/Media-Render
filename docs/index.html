@@ -72,6 +72,7 @@
   .downloads a:hover { border-color: var(--accent); }
   .downloads strong { display: block; }
   .downloads span { color: var(--muted); font-size: 0.95rem; }
+  .downloads code { font-size: 0.9em; }
   .downloads .size { white-space: nowrap; font-variant-numeric: tabular-nums; }
 
   .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
@@ -99,9 +100,9 @@
   <section aria-labelledby="all">
     <h2 id="all">All downloads</h2>
     <ul class="downloads">
-      <li><a data-file="Media-Zipper-win-x64.exe"><div><strong>Windows</strong><span>Windows 10 and 11 · installer</span></div><span class="size"></span></a></li>
-      <li><a data-file="Media-Zipper-mac-arm64.dmg"><div><strong>Mac with Apple Silicon</strong><span>M1, M2, M3, M4 and later</span></div><span class="size"></span></a></li>
-      <li><a data-file="Media-Zipper-mac-x64.dmg"><div><strong>Mac with Intel</strong><span>Apple menu → About This Mac shows an Intel processor</span></div><span class="size"></span></a></li>
+      <li><a data-file="Media-Zipper-win-x64.exe"><div><strong>Windows</strong><span>Windows 10 and 11 · <code>Media-Zipper-win-x64.exe</code></span></div><span class="size"></span></a></li>
+      <li><a data-file="Media-Zipper-mac-arm64.dmg"><div><strong>Mac with Apple Silicon</strong><span>M1, M2, M3, M4 and later · <code>Media-Zipper-mac-arm64.dmg</code></span></div><span class="size"></span></a></li>
+      <li><a data-file="Media-Zipper-mac-x64.dmg"><div><strong>Mac with Intel</strong><span>About This Mac shows an Intel processor · <code>Media-Zipper-mac-x64.dmg</code></span></div><span class="size"></span></a></li>
     </ul>
   </section>
 
