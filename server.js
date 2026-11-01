@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +48,22 @@ app.get('/healthz', (_req, res) => res.type('text').send('ok'));
 app.use(express.static(path.join(here, 'public')));
 
 await initJobs();
+
+// Say whether yt-dlp will get cookies (names only, never values) so setup problems show in the logs.
+if (cfg.ytdlpCookies) {
+  try {
+    const rows = fs.readFileSync(cfg.ytdlpCookies, 'utf8').split('\n').map((l) => l.split('\t'));
+    const yt = rows.filter((r) => r.length >= 7 && /youtube\.com$/.test(r[0]));
+    const login = yt.filter((r) => /^(SID|__Secure-3PSID|LOGIN_INFO|SAPISID)$/.test(r[5])).map((r) => r[5]);
+    console.log(`yt-dlp cookies: ${cfg.ytdlpCookies}, ${yt.length} youtube.com cookies, login cookies: ${login.join(', ') || 'NONE (export while signed in)'}`);
+  } catch (err) {
+    console.log(`yt-dlp cookies: cannot read ${cfg.ytdlpCookies} (${err.message})`);
+  }
+} else if (cfg.ytdlpCookiesFromBrowser) {
+  console.log(`yt-dlp cookies: from browser ${cfg.ytdlpCookiesFromBrowser}`);
+} else {
+  console.log('yt-dlp cookies: not set (YTDLP_COOKIES is empty), YouTube may ask to sign in');
+}
 
 // Sites change often; keep yt-dlp current (at boot, then daily).
 const updateYtdlp = () => {
