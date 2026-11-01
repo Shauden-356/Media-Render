@@ -201,13 +201,28 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 10px;
-    padding: 12px 14px;
+    padding: 10px 14px 10px 10px;
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 4px 14px;
+    grid-template-columns: 168px minmax(0, 1fr) auto;
+    gap: 4px 16px;
     align-items: center;
   }
+  .streams .thumb {
+    grid-row: span 2; width: 168px; aspect-ratio: 16 / 9; border-radius: 6px; overflow: hidden;
+    background: var(--thumb); display: grid; place-items: center; color: var(--muted); font-size: 0.8rem;
+  }
+  .streams .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .streams .info { min-width: 0; align-self: end; }
   .streams .src { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .streams .meta { color: var(--muted); font-size: 0.88rem; align-self: start; grid-column: 2; }
+  .streams .badge { color: var(--accent); font-weight: 600; }
+  .streams li > button { grid-row: span 2; }
+  .streams.pick { outline: 2px solid var(--accent); outline-offset: 10px; border-radius: 4px; }
+  @media (max-width: 560px) {
+    .streams li { grid-template-columns: 120px minmax(0, 1fr); }
+    .streams .thumb { width: 120px; }
+    .streams li > button { grid-column: 1 / -1; grid-row: auto; }
+  }
   .streams .msg { grid-column: 1 / -1; font-size: 0.9rem; color: var(--muted); }
   .streams .msg.error { color: var(--danger); }
   .streams button { background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 9px 16px; }
@@ -545,33 +560,89 @@
 
   const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'video'; } };
 
+  const fmtTime = (sec) => {
+    sec = Math.round(sec);
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = String(sec % 60).padStart(2, '0');
+    return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`;
+  };
+
+  // Each video found on the page, as a card with a preview so the user can pick the right one.
   function renderStreams() {
     const box = $('#streams'), list = $('#streamList');
     const videos = [
-      ...items.filter((it) => it.kind === 'video').map((it) => ({ ...it, direct: true })),
       ...streams,
-    ];
+      ...items.filter((it) => it.kind === 'video').map((it) => ({ ...it, direct: true })),
+    ].slice(0, 16);
     box.hidden = !videos.length;
     list.replaceChildren(...videos.map((st) => {
       const li = document.createElement('li');
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      thumb.textContent = 'Loading preview…';
+      const info = document.createElement('div');
+      info.className = 'info';
       const src = document.createElement('div');
       src.className = 'src';
-      src.textContent = st.played ? `${st.name} · the one the player used` : st.name;
+      src.textContent = st.name;
       src.title = st.url;
+      info.append(src);
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const kind = st.embed ? 'Embedded player' : st.direct ? 'Video file' : 'Stream';
+      const badge = st.played ? 'Played by the page' : '';
+      const setMeta = (extra) => {
+        meta.replaceChildren();
+        if (badge) {
+          const b = document.createElement('span');
+          b.className = 'badge';
+          b.textContent = badge + ' · ';
+          meta.append(b);
+        }
+        meta.append([kind, ...extra].filter(Boolean).join(' · '));
+      };
+      setMeta([]);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = 'Download';
-      btn.onclick = () => startJob(st.name.replace(/\.[^.]+$/, '') || pageTitle || hostOf(page), st.url, page);
-      li.append(src, btn);
+      let title = '';
+      btn.onclick = () => startJob(title || st.name.replace(/\.[^.]+$/, '') || pageTitle || hostOf(page), st.url, page);
+      li.append(thumb, info, btn, meta);
+
+      fetch('/api/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: st.url, page }),
+      })
+        .then((r) => r.json())
+        .then((p) => {
+          if (p.title) { title = p.title; src.textContent = p.title; }
+          setMeta([p.duration ? fmtTime(p.duration) : '', p.height ? `${p.height}p` : '']);
+          if (p.thumb) {
+            const img = document.createElement('img');
+            img.alt = '';
+            img.src = p.thumb;
+            img.onerror = () => { thumb.textContent = 'No preview'; };
+            thumb.replaceChildren(img);
+          } else {
+            thumb.textContent = 'No preview';
+          }
+        })
+        .catch(() => { thumb.textContent = 'No preview'; });
       return li;
     }));
   }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const url = normalize(urlEl.value);
-    if (/\.m3u8(?:$|[?#&])/i.test(url)) { startJob(hostOf(url) + '-stream', url, ''); return; } // playlist pasted directly
-    scanBtn.disabled = true;
+  // Addresses that are a video themselves (not a page to look through).
+  const VIDEO_SITES = /(^|\.)(youtube\.com|youtube-nocookie\.com|youtu\.be|vimeo\.com|dailymotion\.com|twitch\.tv|tiktok\.com|x\.com|twitter\.com|instagram\.com|facebook\.com|reddit\.com|soundcloud\.com|bilibili\.com)$/i;
+  const isVideoAddress = (u) => {
+    try {
+      const x = new URL(u);
+      return VIDEO_SITES.test(x.hostname) || /\.(m3u8|mpd|mp4|m4v|webm|mov|mkv)$/i.test(x.pathname);
+    } catch { return false; }
+  };
+
+  // Scans a page and shows what it has. Returns the scan data (null on failure).
+  async function scan(url) {
     results.hidden = true;
     dock.hidden = true;
     setStatus('Opening the page and scrolling through it to catch everything it loads. This can take up to a minute.');
@@ -585,19 +656,20 @@
       if (!r.ok) throw new Error(data.error || `Scan failed (HTTP ${r.status}).`);
       page = data.page;
       items = data.items;
-      streams = data.streams || [];
+      // Embedded YouTube/Vimeo… players are listed with the streams and downloaded with yt-dlp.
+      streams = [...(data.streams || []), ...(data.embeds || []).map((e) => ({ ...e, embed: true }))];
       pageTitle = data.title || '';
       $('#notes').textContent = (data.notes || []).join(' ');
       if (!items.length && !streams.length) {
         setStatus(((data.notes || []).join(' ') + ' No downloadable images, audio or video found on that page.').trim(), true);
-        return;
+        return data;
       }
       selected = new Set(items.map((i) => i.url));
       filter = 'all';
       $('#title').textContent = data.title || new URL(page).hostname;
       const found = [];
       if (items.length) found.push(`${items.length} file${items.length === 1 ? '' : 's'}`);
-      if (streams.length) found.push(`${streams.length} streamed video${streams.length === 1 ? '' : 's'}`);
+      if (streams.length) found.push(`${streams.length} streamed or embedded video${streams.length === 1 ? '' : 's'}`);
       setStatus(`Found ${found.join(' and ')}.`);
       results.hidden = false;
       document.querySelector('.bar').hidden = !items.length;
@@ -606,18 +678,57 @@
       renderChips();
       renderGrid();
       renderDock();
+      return data;
     } catch (err) {
       setStatus(err.message, true);
+      return null;
+    }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = normalize(urlEl.value);
+    if (/\.m3u8(?:$|[?#&])/i.test(url)) { startJob(hostOf(url) + '-stream', url, ''); return; } // playlist pasted directly
+    scanBtn.disabled = true;
+    try {
+      await scan(url);
     } finally {
       scanBtn.disabled = false;
     }
   });
 
-  $('#grab').onclick = () => {
+  // A video address downloads straight away. A page is looked through first: several videos
+  // -> the user picks one from the previews; exactly one -> that one; none -> Auto mode,
+  // which also tries yt-dlp on the page and on embedded players.
+  $('#grab').onclick = async () => {
     const url = normalize(urlEl.value);
     if (!urlEl.value.trim()) { setStatus('Paste a page or video address first.', true); return; }
-    setStatus('');
-    startJob(hostOf(url) + '-video', url, '');
+    if (isVideoAddress(url) || methodEl.value !== 'auto') {
+      setStatus('');
+      startJob(hostOf(url) + '-video', url, '');
+      return;
+    }
+    const grab = $('#grab');
+    grab.disabled = true;
+    try {
+      const data = await scan(url);
+      const videos = [...streams, ...items.filter((it) => it.kind === 'video')];
+      if (data && videos.length > 1) {
+        setStatus(`This page has ${videos.length} videos. Pick the one you want below; the previews show which is which.`);
+        const box = $('#streams');
+        box.classList.add('pick');
+        box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => box.classList.remove('pick'), 2500);
+      } else if (data && videos.length === 1) {
+        setStatus('');
+        startJob(pageTitle || hostOf(url) + '-video', videos[0].url, page);
+      } else {
+        setStatus('');
+        startJob(pageTitle || hostOf(url) + '-video', url, '');
+      }
+    } finally {
+      grab.disabled = false;
+    }
   };
 
   $('#all').onclick = () => { visible().forEach((i) => selected.add(i.url)); renderGrid(); renderDock(); };

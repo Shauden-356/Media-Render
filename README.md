@@ -50,7 +50,17 @@ a way yt-dlp often can't read, so use Firefox there if Chrome doesn't work.
 |---|---|
 | an `.m3u8` address | HLS + FFmpeg → yt-dlp |
 | a direct video file | Direct file (+ FFmpeg) → yt-dlp |
-| a normal web page | Browser opens it, plays the video and records the stream/file it requests → HLS + FFmpeg / direct (longest stream wins, so ads and trailers are skipped) → yt-dlp on the page itself |
+| a normal web page | Browser opens it, plays the video and records the stream/file it requests, with the headers the player sent → HLS + FFmpeg / direct / DASH via yt-dlp (longest stream wins, so ads and trailers are skipped) → yt-dlp on the page itself → yt-dlp on embedded YouTube/Vimeo… players → yt-dlp on frames that hold a video player |
+
+**Several videos on a page:** *Download video from this address* first looks through the page. If it finds more than
+one video, it shows them as cards with a preview frame, title, length and resolution, and you pick one. With exactly
+one it downloads it straight away; with none it runs the steps above.
+
+**Fewer dead ends:**
+- A stream link from the list that has expired (HTTP 401/403/410) is refreshed by opening its page again, then retried once.
+- Pages that play DRM-protected video (Widevine/FairPlay) say so instead of trying every method.
+- yt-dlp's common failures (age-restricted, private, members-only, blocked in your country, rate-limited, not started yet)
+  are explained in plain words; its full output stays under **Error details**.
 
 You can also force a method in the **Method** menu: *HLS + FFmpeg*, *yt-dlp*, *Direct file*, *FFmpeg only*.
 YouTube and similar sites (Vimeo, TikTok, X, Instagram, Reddit, SoundCloud…) go straight to yt-dlp.

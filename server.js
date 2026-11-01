@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import scan from './api/scan.js';
 import zip from './api/zip.js';
+import preview from './api/preview.js';
 import { startJob, jobStatus, jobFile, jobCancel } from './api/jobs.js';
 import { initJobs } from './lib/jobs.js';
 import { prepareScanner } from './lib/scanner.js';
@@ -28,6 +29,7 @@ export async function startServer({ port = 0, host = '127.0.0.1' } = {}) {
 
   app.post('/api/scan', wrap(scan));
   app.post('/api/zip', wrap(zip));
+  app.post('/api/preview', wrap(preview));
   app.post('/api/jobs', wrap(startJob));
   app.get('/api/jobs/:id', wrap(jobStatus));
   app.get('/api/jobs/:id/file', wrap(jobFile));
