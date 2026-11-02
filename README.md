@@ -58,8 +58,12 @@ one it downloads it straight away; with none it runs the steps above.
 
 **Fewer dead ends:**
 - A stream link from the list that has expired (HTTP 401/403/410) is refreshed by opening its page again, then retried once.
-- When yt-dlp is refused with HTTP 403 or a Cloudflare challenge, it retries once posing as a browser
-  (`--extractor-args "generic:impersonate"`).
+- When a download is refused (HTTP 403 or a Cloudflare challenge), yt-dlp retries once posing as Chrome:
+  `--impersonate chrome` (curl-impersonate, which copies Chrome's TLS fingerprint) for every request, plus
+  `--extractor-args "generic:impersonate"`. Streams that FFmpeg is refused on get this retry too.
+- The page scan starts the player (muted autoplay, its play button, a click on the player, also inside player
+  frames) and waits for it to load its stream. It also finds playlists the player loads by script (XHR/fetch)
+  from addresses without `.m3u8`, and stream addresses in the player's API answers (JSON).
 - Pages that play DRM-protected video (Widevine/FairPlay) say so instead of trying every method.
 - yt-dlp's common failures (age-restricted, private, members-only, blocked in your country, rate-limited, not started yet)
   are explained in plain words; its full output stays under **Error details**.
