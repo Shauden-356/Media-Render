@@ -64,6 +64,12 @@ one it downloads it straight away; with none it runs the steps above.
 - The page scan starts the player (muted autoplay, its play button, a click on the player, also inside player
   frames) and waits for it to load its stream. It also finds playlists the player loads by script (XHR/fetch)
   from addresses without `.m3u8`, and stream addresses in the player's API answers (JSON).
+- Streams are recognised like the stream-detector extension does: `.m3u8`, `.mpd`, `.f4m` or `.ism/manifest`
+  anywhere in the address path (e.g. `/video.m3u8/token`), or a stream content type, noted as soon as the page
+  requests them. HLS, DASH, HDS and Smooth Streaming are supported.
+- A pasted address that doesn't say what it is (e.g. `/getSources?id=9`) is checked first: its first few KB tell
+  whether it is a playlist, a video/audio file or a web page. Streams then try their own method, yt-dlp, and
+  finally FFmpeg reading the stream directly (which also accepts pieces disguised as `.jpg`/`.png`).
 - Pages that play DRM-protected video (Widevine/FairPlay) say so instead of trying every method.
 - yt-dlp's common failures (age-restricted, private, members-only, blocked in your country, rate-limited, not started yet)
   are explained in plain words; its full output stays under **Error details**.

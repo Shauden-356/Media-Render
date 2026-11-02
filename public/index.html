@@ -634,10 +634,14 @@
 
   // Addresses that are a video themselves (not a page to look through).
   const VIDEO_SITES = /(^|\.)(youtube\.com|youtube-nocookie\.com|youtu\.be|vimeo\.com|dailymotion\.com|twitch\.tv|tiktok\.com|x\.com|twitter\.com|instagram\.com|facebook\.com|reddit\.com|soundcloud\.com|bilibili\.com)$/i;
+  // Streams: ".m3u8", ".mpd", ".f4m" or ".ism/manifest" anywhere in the path (e.g. /video.m3u8/token).
+  const isStreamAddress = (u) => {
+    try { return /\.m3u8|\.mpd(?:$|[/;.])|\.f4m(?:$|[/;.])|\.isml?\/manifest/i.test(new URL(u).pathname); } catch { return false; }
+  };
   const isVideoAddress = (u) => {
     try {
       const x = new URL(u);
-      return VIDEO_SITES.test(x.hostname) || /\.(m3u8|mpd|mp4|m4v|webm|mov|mkv)$/i.test(x.pathname);
+      return VIDEO_SITES.test(x.hostname) || isStreamAddress(u) || /\.(mp4|m4v|webm|mov|mkv)$/i.test(x.pathname);
     } catch { return false; }
   };
 
@@ -657,7 +661,12 @@
       page = data.page;
       items = data.items;
       // Embedded YouTube/Vimeo… players are listed with the streams and downloaded with yt-dlp.
-      streams = [...(data.streams || []), ...(data.embeds || []).map((e) => ({ ...e, embed: true }))];
+      streams = [
+        ...(data.streams || []),
+        // DASH / HDS / Smooth Streaming: downloaded with yt-dlp.
+        ...(data.dash || []).map((u) => ({ url: u, name: u.split('?')[0].split('/').filter(Boolean).pop() || 'stream' })),
+        ...(data.embeds || []).map((e) => ({ ...e, embed: true })),
+      ];
       pageTitle = data.title || '';
       $('#notes').textContent = (data.notes || []).join(' ');
       if (!items.length && !streams.length) {
@@ -688,7 +697,7 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const url = normalize(urlEl.value);
-    if (/\.m3u8(?:$|[?#&])/i.test(url)) { startJob(hostOf(url) + '-stream', url, ''); return; } // playlist pasted directly
+    if (isStreamAddress(url)) { startJob(hostOf(url) + '-stream', url, ''); return; } // playlist pasted directly
     scanBtn.disabled = true;
     try {
       await scan(url);
