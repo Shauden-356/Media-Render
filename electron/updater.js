@@ -65,7 +65,12 @@ async function checkMac(manual) {
   const version = String(rel.tag_name || '').replace(/^v/, '');
   if (!newer(version, app.getVersion())) return manual && upToDate();
 
-  const asset = rel.assets.find((a) => a.name === `Media-Zipper-mac-${process.arch}.zip`);
+  // Only this repo's own release files (GitHub's download address for them).
+  const asset = rel.assets.find(
+    (a) =>
+      a.name === `Media-Zipper-mac-${process.arch}.zip` &&
+      String(a.browser_download_url).startsWith(`https://github.com/${REPO}/releases/download/`)
+  );
   if (!asset || !canReplaceApp()) {
     // Can't swap the app in place: point to the download instead.
     const { response } = await dialog.showMessageBox(getWindow(), {

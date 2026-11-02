@@ -1,4 +1,4 @@
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { safeFetch } from '../lib/net.js';
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', 'attachment; filename="media.zip"');
 
-  const archive = archiver('zip', { zlib: { level: 1 } });
+  const archive = new ZipArchive({ zlib: { level: 1 } });
   archive.on('error', () => res.destroy());
   archive.pipe(res);
 

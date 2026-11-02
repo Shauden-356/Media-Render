@@ -145,8 +145,11 @@ function createWindow(port) {
     minHeight: 500,
     title: 'Media Zipper',
     autoHideMenuBar: false,
-    webPreferences: { contextIsolation: true, sandbox: true },
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false },
   });
+  // The page needs no camera, microphone, location, notifications…
+  win.webContents.session.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+  win.webContents.session.setPermissionCheckHandler(() => false);
   const home = `http://127.0.0.1:${port}/`;
   win.loadURL(home);
 

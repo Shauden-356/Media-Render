@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -12,12 +14,47 @@ import { cfg } from './lib/config.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+// The page's own inline script, allowed by its hash (no other inline script can run).
+const pageScripts = [...fs.readFileSync(path.join(here, 'public', 'index.html'), 'utf8').matchAll(/<script>([\s\S]*?)<\/script>/g)]
+  .map((m) => `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`)
+  .join(' ');
+
 // Starts the local server. Listens on this computer only (127.0.0.1), so downloads use
 // the user's own internet connection and nothing is reachable from other machines.
 // port 0 picks any free port. Resolves to the port actually used.
 export async function startServer({ port = 0, host = '127.0.0.1' } = {}) {
   const app = express();
   app.disable('x-powered-by');
+
+  // Only the app's own page may use this server, not other websites open in the user's browser
+  // (which could otherwise start downloads with the user's YouTube cookies, or read results):
+  // - Host: a site pointing its own name at 127.0.0.1 (DNS rebinding) arrives with that name.
+  // - Origin / Sec-Fetch-Site: requests and links from another site say where they come from.
+  app.use((req, res, next) => {
+    const port = req.socket.localPort;
+    const self = [`127.0.0.1:${port}`, `localhost:${port}`];
+    const origin = req.headers.origin;
+    const site = req.headers['sec-fetch-site'];
+    if (
+      !self.includes(req.headers.host) ||
+      (origin && !self.some((h) => origin === `http://${h}`)) ||
+      (site && site !== 'same-origin' && site !== 'none')
+    ) {
+      return res.status(403).json({ error: 'Forbidden.' });
+    }
+    // The page may not be framed by other sites, and only runs its own scripts.
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader(
+      'Content-Security-Policy',
+      `default-src 'self'; script-src 'self' ${pageScripts}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ` +
+        `font-src https://fonts.gstatic.com; img-src * data: blob:; connect-src 'self'; frame-ancestors 'none'; ` +
+        `base-uri 'none'; form-action 'self'; object-src 'none'`
+    );
+    next();
+  });
+
   app.use(express.json({ limit: '1mb' }));
 
   const wrap = (handler) => (req, res) =>

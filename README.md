@@ -145,6 +145,17 @@ scripts/    fetch-binaries.mjs (downloads FFmpeg, ffprobe + yt-dlp into vendor/ 
 desktop/hls_downloader.py   (older standalone Python tool, not part of the app)
 ```
 
+## Security
+- The built-in server listens on this computer only (127.0.0.1) and answers only the app's own page: requests from
+  other websites open in your browser are refused (Host, Origin and Sec-Fetch-Site checks), so they can't start
+  downloads with your YouTube cookies or read results. Its page runs only its own script (Content-Security-Policy).
+- Downloads may only go to public internet addresses, never to your own network (checked again on every redirect).
+- The window is sandboxed (no Node.js access, no permissions such as camera or location); other links open in your browser.
+- Updates come only from this repo's GitHub releases over HTTPS.
+- The release build checks FFmpeg and yt-dlp against known SHA-256 checksums, and its GitHub Actions are pinned to
+  exact commits. Dependabot proposes security updates.
+- The app is not signed with a paid Apple or Microsoft certificate, so macOS and Windows warn on first launch.
+
 ## Troubleshooting
 - *"This stream is encrypted"* in the notes → Auto already falls back to yt-dlp; if that fails too it is DRM.
 - *Page scan finds no video* → paste the page address and press **Download video from this address**

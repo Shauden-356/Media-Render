@@ -1,0 +1,12 @@
+# Opens pull requests for security fixes and new versions: npm packages, and the GitHub Actions
+# used by the release workflow (which are pinned to exact commits).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

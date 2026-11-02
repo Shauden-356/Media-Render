@@ -1,7 +1,7 @@
 {
   "name": "media-zipper",
   "productName": "Media Zipper",
-  "version": "6.3.2",
+  "version": "6.3.3",
   "description": "Find, zip and download images, audio and video from web pages.",
   "author": "Shauden-356",
   "private": true,
@@ -17,7 +17,7 @@
     "dist:win": "node scripts/fetch-binaries.mjs win32 x64 && electron-builder --win --x64"
   },
   "dependencies": {
-    "archiver": "^7.0.1",
+    "archiver": "^8.0.0",
     "cheerio": "^1.0.0",
     "electron-updater": "^6.8.11",
     "express": "^4.21.2",
@@ -74,6 +74,11 @@
       "provider": "github",
       "owner": "Shauden-356",
       "repo": "Media-Render"
+    }
+  },
+  "overrides": {
+    "readdir-glob": {
+      "minimatch": "^11.0.1"
     }
   }
 }
