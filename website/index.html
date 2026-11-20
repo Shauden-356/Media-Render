@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imadia: download for Mac and Windows</title>
+<meta name="description" content="Imadia is a free desktop app that finds the images, audio and video on a web page and saves them to your computer.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="" width="32" height="32"> Imadia</a>
+  <nav aria-label="Site">
+    <a href="#downloads">Downloads</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="https://github.com/Shauden-356/Media-Render" rel="noopener noreferrer">GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <img class="hero-logo" src="/assets/logo.svg" alt="" width="112" height="112">
+    <h1>Save the media on any page.</h1>
+    <p class="lede">Imadia finds the images, audio and video on a web page and saves what you pick: one zip of files, or a video as MP4, MKV, MP3 or M4A. It runs on your own computer and is free.</p>
+
+    <div class="cta">
+      <button type="button" class="primary" id="primary" data-file="">Choose a download</button>
+      <p class="detected" id="detected" aria-live="polite">Pick your system below.</p>
+      <p class="meta" id="meta"></p>
+    </div>
+    <noscript><p class="notice">Downloads need JavaScript, so that the Terms of Use can be shown first. You can read them on the <a href="/terms">Terms of Use</a> page.</p></noscript>
+  </section>
+
+  <section class="features" aria-label="What it does">
+    <div><h2>Finds everything</h2><p>Opens the page the way a browser does, scrolls through it and lists every image, sound and video it loads.</p></div>
+    <div><h2>Video and streams</h2><p>Saves streamed video (HLS, DASH) and the sites yt-dlp supports, with the quality you choose.</p></div>
+    <div><h2>On your computer</h2><p>Nothing goes through our servers: downloads use your own connection, and there is no account.</p></div>
+    <div><h2>Stays up to date</h2><p>Installs new versions by itself, so fixes for changing websites reach you quickly.</p></div>
+  </section>
+
+  <section id="downloads" class="downloads">
+    <h2>All downloads</h2>
+    <ul class="files">
+      <li><button type="button" data-file="Imadia-mac-arm64.dmg"><span><strong>Mac with Apple silicon</strong><small>M1, M2, M3, M4 and later · <code>Imadia-mac-arm64.dmg</code></small></span><span class="size" data-size="Imadia-mac-arm64.dmg"></span></button></li>
+      <li><button type="button" data-file="Imadia-mac-x64.dmg"><span><strong>Mac with Intel</strong><small>About This Mac shows an Intel processor · <code>Imadia-mac-x64.dmg</code></small></span><span class="size" data-size="Imadia-mac-x64.dmg"></span></button></li>
+      <li><button type="button" data-file="Imadia-win-x64.exe"><span><strong>Windows</strong><small>Windows 10 and 11 · <code>Imadia-win-x64.exe</code></small></span><span class="size" data-size="Imadia-win-x64.exe"></span></button></li>
+    </ul>
+    <p class="note">Linux, iPhone, iPad and Android are not supported yet.</p>
+  </section>
+
+  <section class="install">
+    <h2>Installing</h2>
+    <div class="cols">
+      <div>
+        <h3>Mac</h3>
+        <ol>
+          <li>Open the downloaded <b>.dmg</b> and drag Imadia into <b>Applications</b>.</li>
+          <li>The first time, macOS says it can't check the app for malicious software. Close that message, open <b>System Settings › Privacy &amp; Security</b> and click <b>Open Anyway</b>.</li>
+        </ol>
+      </div>
+      <div>
+        <h3>Windows</h3>
+        <ol>
+          <li>Run <b>Imadia-win-x64.exe</b>.</li>
+          <li>If Windows shows "Windows protected your PC", click <b>More info › Run anyway</b>.</li>
+        </ol>
+      </div>
+    </div>
+    <p class="note">These warnings appear because the app isn't signed with a paid Apple or Microsoft certificate. The installers are built from the public source code on GitHub.</p>
+  </section>
+</main>
+
+<footer>
+  <p>Imadia is provided "as is", without warranty of any kind. Use it only for content you have the right to download.</p>
+  <p><a href="/terms">Terms of Use</a> · <a href="/privacy">Privacy Policy</a> · <a href="https://github.com/Shauden-356/Media-Render/releases" rel="noopener noreferrer">All releases</a></p>
+</footer>
+
+<dialog id="terms" aria-labelledby="termsTitle">
+  <form method="dialog" id="termsForm">
+    <h2 id="termsTitle">Before you download</h2>
+    <p class="file" id="termsFile"></p>
+    <div class="terms-text" tabindex="0">
+      <p><strong>No warranty.</strong> Imadia is free software provided "as is" and "as available", without warranties of any kind, express or implied, including merchantability, fitness for a particular purpose and non-infringement.</p>
+      <p><strong>No liability.</strong> To the fullest extent permitted by law, the authors and contributors of Imadia are not liable for any damages or losses of any kind arising from downloading, installing or using it, including loss of data, damage to your device, and claims by third parties.</p>
+      <p><strong>Your responsibility.</strong> You are solely responsible for what you download with Imadia. Download only content you own or have permission to save, and follow the law and the terms of the websites you use. Imadia is not affiliated with or endorsed by any website it can be used with.</p>
+      <p><strong>Third-party software.</strong> Imadia includes FFmpeg, yt-dlp, Electron and other open-source components under their own licenses.</p>
+    </div>
+    <label class="agree"><input type="checkbox" id="agree"> <span>I have read and agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Use</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
+    <div class="actions">
+      <button type="submit" value="cancel" class="secondary">Cancel</button>
+      <button type="button" class="primary" id="go" disabled>Download</button>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>

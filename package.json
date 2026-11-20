@@ -1,7 +1,7 @@
 {
-  "name": "media-zipper",
-  "productName": "Media Zipper",
-  "version": "6.3.4",
+  "name": "imadia",
+  "productName": "Imadia",
+  "version": "7.0.0",
   "description": "Find, zip and download images, audio and video from web pages.",
   "author": "Shauden-356",
   "private": true,
@@ -29,10 +29,11 @@
   },
   "build": {
     "appId": "com.shauden356.mediazipper",
-    "productName": "Media Zipper",
-    "artifactName": "Media-Zipper-${os}-${arch}.${ext}",
+    "productName": "Imadia",
+    "artifactName": "Imadia-${os}-${arch}.${ext}",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
     "files": [
       "electron/**",
@@ -58,17 +59,21 @@
       ],
       "category": "public.app-category.utilities",
       "identity": "-",
-      "hardenedRuntime": false
+      "hardenedRuntime": false,
+      "icon": "build/icon.icns"
     },
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Imadia",
+      "uninstallDisplayName": "Imadia"
     },
     "publish": {
       "provider": "github",

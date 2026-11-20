@@ -48,8 +48,8 @@ export async function startServer({ port = 0, host = '127.0.0.1' } = {}) {
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader(
       'Content-Security-Policy',
-      `default-src 'self'; script-src 'self' ${pageScripts}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ` +
-        `font-src https://fonts.gstatic.com; img-src * data: blob:; connect-src 'self'; frame-ancestors 'none'; ` +
+      `default-src 'self'; script-src 'self' ${pageScripts}; style-src 'self' 'unsafe-inline'; ` +
+        `font-src 'none'; img-src * data: blob:; connect-src 'self'; frame-ancestors 'none'; ` +
         `base-uri 'none'; form-action 'self'; object-src 'none'`
     );
     next();

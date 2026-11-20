@@ -1,4 +1,6 @@
-# Media Zipper (desktop app for Windows and macOS)
+# Imadia (desktop app for Windows and macOS)
+
+Formerly called Media Zipper.
 
 A desktop app that, given a web page address:
 
@@ -11,18 +13,18 @@ Everything runs on your own computer with your own internet connection. The app 
 that only this computer can reach (`127.0.0.1`) and shows it in its window. FFmpeg, ffprobe and yt-dlp are included.
 
 ## Installing (for people you share it with)
-Send them to the download page, https://shauden-356.github.io/Media-Render/, or the
+Send them to the download page, https://imadia.vercel.app/, or the
 [latest release](https://github.com/Shauden-356/Media-Render/releases/latest). The files are:
 
 | Computer | File |
 |---|---|
-| Windows 10/11 | `Media-Zipper-win-x64.exe` (installer) |
-| Mac with Apple Silicon (M1 or later) | `Media-Zipper-mac-arm64.dmg` |
-| Mac with Intel | `Media-Zipper-mac-x64.dmg` |
+| Windows 10/11 | `Imadia-win-x64.exe` (installer) |
+| Mac with Apple Silicon (M1 or later) | `Imadia-mac-arm64.dmg` |
+| Mac with Intel | `Imadia-mac-x64.dmg` |
 
 The app isn't signed with a paid Apple or Microsoft certificate, so the first launch shows a warning:
 - **Windows:** "Windows protected your PC" → **More info** → **Run anyway**.
-- **macOS:** open the `.dmg` and drag Media Zipper into Applications. The first time you open it, macOS says it
+- **macOS:** open the `.dmg` and drag Imadia into Applications. The first time you open it, macOS says it
   can't verify the app → click **Done**, then **System Settings → Privacy & Security** → scroll down →
   **Open Anyway**.
 
@@ -33,7 +35,7 @@ downloads a small headless browser on first start, which takes about a minute. U
 The app checks for a new release when it starts and every 6 hours (also **Help → Check for Updates…**).
 It downloads the new version in the background, then offers **Restart now**; choosing *Later* installs it when you quit.
 - **Windows:** handled by `electron-updater` with the installer and `latest.yml` from the release.
-- **Mac:** the app downloads `Media-Zipper-mac-<arch>.zip` and swaps itself in place when it quits. This needs the
+- **Mac:** the app downloads `Imadia-mac-<arch>.zip` and swaps itself in place when it quits. This needs the
   app to be in **Applications**. If it's run from the .dmg or Downloads, it offers a download link instead.
   (Apple's built-in updater only accepts apps signed with a paid developer certificate.)
 
@@ -100,8 +102,13 @@ When a video is ready, the app asks where to save it.
 - AES-128 encrypted HLS is handled by yt-dlp. DRM (Widevine/FairPlay) is not supported.
 
 ## Download page and releases
-- **Download page:** `docs/index.html`, served by GitHub Pages at https://shauden-356.github.io/Media-Render/.
-  Its buttons always point at the newest release, so the page never needs editing.
+- **Download page:** `website/`, a static site for Vercel (https://imadia.vercel.app/). It detects the visitor's
+  system, shows the Terms before every download, and its buttons always point at the newest release, so it never
+  needs editing for a new version. Deploy it with `cd website && vercel --prod` (or import the repo in Vercel with
+  **Root Directory** set to `website`). Security headers are in `website/vercel.json`.
+  `docs/index.html` (the old GitHub Pages address) forwards there.
+- **Older installs:** copies installed before the rename look for `Media-Zipper-mac-<arch>.zip` to update, so the
+  release workflow also uploads the Mac update under that name. Keep it for a few versions.
 - **Publishing a new version:** raise `version` in `package.json`, commit, then
   ```
   git tag v6.0.1
@@ -140,7 +147,9 @@ VS Code sets that variable, and it makes Electron behave like plain Node.
 ## Project layout
 ```
 package.json   server.js
-docs/       index.html (download page for GitHub Pages)
+website/    download site for Vercel (index, terms, privacy, vercel.json)
+docs/       index.html (old GitHub Pages address, forwards to the website)
+build/      app icons (icon.icns for Mac, icon.ico for Windows)
 .github/workflows/release.yml (builds installers when a v* tag is pushed)
 electron/   main.js (desktop window, menus, bundled binaries)
 api/        scan.js  zip.js  jobs.js

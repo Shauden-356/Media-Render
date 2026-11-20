@@ -1,0 +1,4 @@
+Contact: https://github.com/Shauden-356/Media-Render/security/advisories/new
+Expires: 2027-11-19T00:00:00.000Z
+Preferred-Languages: en
+Policy: https://github.com/Shauden-356/Media-Render/security/policy

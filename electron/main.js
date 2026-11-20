@@ -9,6 +9,18 @@ import { checkForUpdates, startAutoUpdates } from './updater.js';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const exe = process.platform === 'win32' ? '.exe' : '';
+// The download website (Help > Download Page).
+const SITE = 'https://imadia.vercel.app/';
+
+// The app was called "Media Zipper" before 7.0: keep using its settings folder (YouTube sign-in
+// choice, yt-dlp copy, page-scanner browser) instead of starting over in a new "Imadia" folder.
+// (Electron creates the new folder by itself early on, so look for the app's own files in it.)
+{
+  const old = path.join(app.getPath('appData'), 'Media Zipper');
+  const now = app.getPath('userData');
+  const used = (dir) => fs.existsSync(path.join(dir, 'bin')) || fs.existsSync(path.join(dir, 'settings.json'));
+  if (!used(now) && used(old)) app.setPath('userData', old);
+}
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
@@ -128,7 +140,7 @@ function buildMenu() {
       role: 'help',
       submenu: [
         { label: 'Check for Updates…', click: () => checkForUpdates({ manual: true }) },
-        { label: 'Download Page', click: () => shell.openExternal('https://shauden-356.github.io/Media-Render/') },
+        { label: 'Download Page', click: () => shell.openExternal(SITE) },
         { type: 'separator' },
         { label: `Version ${app.getVersion()}`, enabled: false },
       ],
@@ -143,7 +155,7 @@ function createWindow(port) {
     height: 860,
     minWidth: 720,
     minHeight: 500,
-    title: 'Media Zipper',
+    title: 'Imadia',
     autoHideMenuBar: false,
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false },
   });
@@ -194,7 +206,7 @@ app.whenReady().then(async () => {
       if (!BrowserWindow.getAllWindows().length) createWindow(port);
     });
   } catch (err) {
-    dialog.showErrorBox('Media Zipper could not start', String(err?.stack || err));
+    dialog.showErrorBox('Imadia could not start', String(err?.stack || err));
     app.quit();
   }
 });

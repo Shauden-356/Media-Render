@@ -1,4 +1,4 @@
-# Builds the Windows and macOS installers and attaches them to a GitHub Release.
+# Builds the Imadia installers for Windows and macOS and attaches them to a GitHub Release.
 # Start it by pushing a version tag:   git tag v6.0.0 && git push origin v6.0.0
 name: Release
 
@@ -33,6 +33,18 @@ jobs:
           npm run dist:mac -- --publish never
           npm run dist:win -- --publish never
 
+      # Copies installed before the rename (Media Zipper 6.x) update themselves from a file named
+      # Media-Zipper-mac-<arch>.zip holding "Media Zipper.app". Same app, old names, so they still update.
+      - name: Update files for Media Zipper 6.x
+        run: |
+          for arch in arm64 x64; do
+            tmp=$(mktemp -d)
+            ditto -x -k "dist/Imadia-mac-$arch.zip" "$tmp"
+            mv "$tmp/Imadia.app" "$tmp/Media Zipper.app"
+            ditto -c -k --sequesterRsrc --keepParent "$tmp/Media Zipper.app" "dist/Media-Zipper-mac-$arch.zip"
+            rm -rf "$tmp"
+          done
+
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
@@ -40,9 +52,11 @@ jobs:
           # Installers, plus what the apps' automatic updates read: latest*.yml (version and
           # checksums), the Mac .zip builds, and blockmaps (Windows downloads only what changed).
           files: |
-            dist/Media-Zipper-mac-arm64.dmg
-            dist/Media-Zipper-mac-x64.dmg
-            dist/Media-Zipper-win-x64.exe
+            dist/Imadia-mac-arm64.dmg
+            dist/Imadia-mac-x64.dmg
+            dist/Imadia-win-x64.exe
+            dist/Imadia-mac-arm64.zip
+            dist/Imadia-mac-x64.zip
             dist/Media-Zipper-mac-arm64.zip
             dist/Media-Zipper-mac-x64.zip
             dist/*.blockmap

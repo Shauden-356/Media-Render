@@ -31,7 +31,7 @@ const newer = (a, b) => {
 async function askToRestart(version) {
   const { response } = await dialog.showMessageBox(getWindow(), {
     type: 'info',
-    message: `Media Zipper ${version} is ready`,
+    message: `Imadia ${version} is ready`,
     detail: 'Restart now to use the new version, or it will be installed the next time you quit.',
     buttons: ['Restart now', 'Later'],
     defaultId: 0,
@@ -42,7 +42,7 @@ async function askToRestart(version) {
 
 // ---- macOS ----------------------------------------------------------------
 
-const appBundle = () => path.resolve(app.getPath('exe'), '../../..'); // …/Media Zipper.app
+const appBundle = () => path.resolve(app.getPath('exe'), '../../..'); // …/Imadia.app (or "Media Zipper.app" for copies installed before 7.0)
 
 function canReplaceApp() {
   const bundle = appBundle();
@@ -58,7 +58,7 @@ function canReplaceApp() {
 
 async function checkMac(manual) {
   const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-    headers: { accept: 'application/vnd.github+json', 'user-agent': 'Media-Zipper-updater' },
+    headers: { accept: 'application/vnd.github+json', 'user-agent': 'Imadia-updater' },
   });
   if (!res.ok) throw new Error(`GitHub answered HTTP ${res.status}`);
   const rel = await res.json();
@@ -68,17 +68,17 @@ async function checkMac(manual) {
   // Only this repo's own release files (GitHub's download address for them).
   const asset = rel.assets.find(
     (a) =>
-      a.name === `Media-Zipper-mac-${process.arch}.zip` &&
+      a.name === `Imadia-mac-${process.arch}.zip` &&
       String(a.browser_download_url).startsWith(`https://github.com/${REPO}/releases/download/`)
   );
   if (!asset || !canReplaceApp()) {
     // Can't swap the app in place: point to the download instead.
     const { response } = await dialog.showMessageBox(getWindow(), {
       type: 'info',
-      message: `Media Zipper ${version} is available`,
+      message: `Imadia ${version} is available`,
       detail: canReplaceApp()
         ? 'Download it from the releases page.'
-        : 'Move Media Zipper into your Applications folder to get updates automatically. For now, download the new version from the releases page.',
+        : 'Move Imadia into your Applications folder to get updates automatically. For now, download the new version from the releases page.',
       buttons: ['Download', 'Later'],
       defaultId: 0,
       cancelId: 1,
@@ -87,15 +87,17 @@ async function checkMac(manual) {
     return;
   }
 
-  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'media-zipper-update-'));
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'imadia-update-'));
   const zip = path.join(dir, asset.name);
-  const dl = await fetch(asset.browser_download_url, { headers: { 'user-agent': 'Media-Zipper-updater' } });
+  const dl = await fetch(asset.browser_download_url, { headers: { 'user-agent': 'Imadia-updater' } });
   if (!dl.ok) throw new Error(`Download answered HTTP ${dl.status}`);
   await pipeline(Readable.fromWeb(dl.body), fs.createWriteStream(zip));
   if ((await fsp.stat(zip)).size !== asset.size) throw new Error('The update download was incomplete.');
   await promisify(execFile)('/usr/bin/ditto', ['-x', '-k', zip, dir]);
-  const newApp = path.join(dir, 'Media Zipper.app');
-  await fsp.access(newApp);
+  // The app inside the zip (it is swapped in under the current app's own name and place).
+  const bundle = (await fsp.readdir(dir)).find((f) => f.endsWith('.app'));
+  if (!bundle) throw new Error('The update download has no app in it.');
+  const newApp = path.join(dir, bundle);
 
   // A small script swaps the apps after this one has exited, then optionally reopens it.
   const script = path.join(dir, 'install.sh');
@@ -168,7 +170,7 @@ function checkWindows(manual) {
 function upToDate() {
   return dialog.showMessageBox(getWindow(), {
     type: 'info',
-    message: 'Media Zipper is up to date',
+    message: 'Imadia is up to date',
     detail: `You have version ${app.getVersion()}.`,
   });
 }
