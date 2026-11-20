@@ -19,7 +19,7 @@ const SITE = 'https://imadia.vercel.app/';
   const old = path.join(app.getPath('appData'), 'Media Zipper');
   const now = app.getPath('userData');
   const used = (dir) => fs.existsSync(path.join(dir, 'bin')) || fs.existsSync(path.join(dir, 'settings.json'));
-  if (!used(now) && used(old)) app.setPath('userData', old);
+  if (!app.commandLine.hasSwitch('user-data-dir') && !used(now) && used(old)) app.setPath('userData', old);
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();

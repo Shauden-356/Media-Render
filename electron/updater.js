@@ -8,18 +8,37 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
 import updaterPkg from 'electron-updater';
 
-const REPO = 'Shauden-356/Media-Render';
-const RELEASES = `https://github.com/${REPO}/releases/latest`;
+// The repo is being renamed from Media-Render to Imadia: try the new name first, and accept
+// release files under either (GitHub forwards the old name after a rename).
+const REPOS = ['Shauden-356/Imadia', 'Shauden-356/Media-Render'];
+const RELEASES = `https://github.com/${REPOS[0]}/releases/latest`;
 const CHECK_EVERY = 6 * 3600_000;
+const FIRST_CHECK = 3000;
 
 let getWindow = () => null;
 let busy = false;
 let ready = null; // { version, install(relaunch) } once an update is downloaded
+let downloading = null; // { version, done, total } while an update downloads
+
+// Download progress on the Dock / taskbar icon (-1 removes it).
+function showProgress(fraction) {
+  const win = getWindow();
+  if (win && !win.isDestroyed()) win.setProgressBar(fraction);
+}
+
+// Tells the user straight away that an update is on its way (without waiting on it).
+function announceDownload(version) {
+  dialog.showMessageBox(getWindow(), {
+    type: 'info',
+    message: `Downloading Imadia ${version}…`,
+    detail: 'You can keep using the app. It will ask you to restart when the update is ready.',
+  });
+}
 
 const newer = (a, b) => {
   const x = a.split('.').map(Number);
@@ -56,12 +75,22 @@ function canReplaceApp() {
   }
 }
 
+async function latestRelease() {
+  let status = 0;
+  for (const repo of REPOS) {
+    const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+      headers: { accept: 'application/vnd.github+json', 'user-agent': 'Imadia-updater' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) return res.json();
+    status = res.status;
+    if (res.status !== 404) break;
+  }
+  throw new Error(`GitHub answered HTTP ${status}`);
+}
+
 async function checkMac(manual) {
-  const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-    headers: { accept: 'application/vnd.github+json', 'user-agent': 'Imadia-updater' },
-  });
-  if (!res.ok) throw new Error(`GitHub answered HTTP ${res.status}`);
-  const rel = await res.json();
+  const rel = await latestRelease();
   const version = String(rel.tag_name || '').replace(/^v/, '');
   if (!newer(version, app.getVersion())) return manual && upToDate();
 
@@ -69,7 +98,7 @@ async function checkMac(manual) {
   const asset = rel.assets.find(
     (a) =>
       a.name === `Imadia-mac-${process.arch}.zip` &&
-      String(a.browser_download_url).startsWith(`https://github.com/${REPO}/releases/download/`)
+      REPOS.some((repo) => String(a.browser_download_url).startsWith(`https://github.com/${repo}/releases/download/`))
   );
   if (!asset || !canReplaceApp()) {
     // Can't swap the app in place: point to the download instead.
@@ -87,11 +116,25 @@ async function checkMac(manual) {
     return;
   }
 
+  if (manual) announceDownload(version);
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'imadia-update-'));
   const zip = path.join(dir, asset.name);
   const dl = await fetch(asset.browser_download_url, { headers: { 'user-agent': 'Imadia-updater' } });
   if (!dl.ok) throw new Error(`Download answered HTTP ${dl.status}`);
-  await pipeline(Readable.fromWeb(dl.body), fs.createWriteStream(zip));
+  downloading = { version, done: 0, total: asset.size };
+  const count = new Transform({
+    transform(chunk, _enc, cb) {
+      downloading.done += chunk.length;
+      showProgress(downloading.done / downloading.total);
+      cb(null, chunk);
+    },
+  });
+  try {
+    await pipeline(Readable.fromWeb(dl.body), count, fs.createWriteStream(zip));
+  } finally {
+    downloading = null;
+    showProgress(-1);
+  }
   if ((await fsp.stat(zip)).size !== asset.size) throw new Error('The update download was incomplete.');
   await promisify(execFile)('/usr/bin/ditto', ['-x', '-k', zip, dir]);
   // The app inside the zip (it is swapped in under the current app's own name and place).
@@ -138,12 +181,23 @@ function checkWindows(manual) {
     winUpdater = updaterPkg.autoUpdater;
     winUpdater.autoDownload = true;
     winUpdater.autoInstallOnAppQuit = true;
+    winUpdater.on('download-progress', (p) => {
+      if (downloading) downloading.done = p.transferred;
+      showProgress(p.percent / 100);
+    });
   }
   return new Promise((resolve, reject) => {
     const done = () => {
+      downloading = null;
+      showProgress(-1);
+      winUpdater.removeListener('update-available', found);
       winUpdater.removeListener('update-not-available', none);
       winUpdater.removeListener('update-downloaded', got);
       winUpdater.removeListener('error', fail);
+    };
+    const found = (info) => {
+      downloading = { version: info.version, done: 0, total: info.files?.[0]?.size || 0 };
+      if (manual) announceDownload(info.version);
     };
     const none = () => {
       done();
@@ -158,6 +212,7 @@ function checkWindows(manual) {
       done();
       reject(err);
     };
+    winUpdater.on('update-available', found);
     winUpdater.on('update-not-available', none);
     winUpdater.on('update-downloaded', got);
     winUpdater.on('error', fail);
@@ -181,7 +236,18 @@ export async function checkForUpdates({ manual = false } = {}) {
     return;
   }
   if (ready) return manual && askToRestart(ready.version);
-  if (busy) return;
+  if (busy) {
+    // A check (often the automatic one) is already running: say what it is doing.
+    if (manual) {
+      const d = downloading;
+      dialog.showMessageBox(getWindow(), {
+        type: 'info',
+        message: d ? `Downloading Imadia ${d.version}…` : 'Checking for updates…',
+        detail: d && d.total ? `${Math.round((d.done / d.total) * 100)}% done. It will ask you to restart when it's ready.` : 'This takes a few seconds.',
+      });
+    }
+    return;
+  }
   busy = true;
   try {
     if (process.platform === 'darwin') await checkMac(manual);
@@ -196,6 +262,6 @@ export async function checkForUpdates({ manual = false } = {}) {
 
 export function startAutoUpdates(windowGetter) {
   getWindow = windowGetter;
-  setTimeout(() => checkForUpdates(), 10_000);
+  setTimeout(() => checkForUpdates(), FIRST_CHECK);
   setInterval(() => checkForUpdates(), CHECK_EVERY).unref();
 }

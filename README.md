@@ -144,6 +144,32 @@ VS Code sets that variable, and it makes Electron behave like plain Node.
 | ALLOW_TRANSCODE | 1 | Allow re-encoding as a last resort |
 | CHROME_PATH | *(auto)* | Use this browser for page scans |
 
+## Code signing (so macOS and Windows trust the app)
+Unsigned apps make macOS say it "can't check the app for malicious software" and Windows show "Windows protected
+your PC". Signing removes those warnings. It needs certificates only the publisher can get; once they are added
+to the GitHub repo, the release workflow signs every build by itself. Until then builds are ad-hoc signed.
+
+**macOS: Apple Developer ID and notarization** (Apple Developer Program, $99 a year)
+1. In your Apple Developer account, create a **Developer ID Application** certificate, install it, and export it
+   from Keychain Access as a `.p12` file with a password.
+2. Create an app-specific password at account.apple.com (Sign-In and Security › App-Specific Passwords), and note
+   your Team ID (developer.apple.com › Account › Membership).
+3. In GitHub: **Settings › Secrets and variables › Actions › New repository secret**:
+   - `MAC_CERTIFICATE`: the `.p12` as base64 (`base64 -i certificate.p12 | pbcopy`)
+   - `MAC_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
+
+The next release is then signed with the hardened runtime (`build/entitlements.mac.plist`) and notarized by Apple.
+
+**Windows: Azure Trusted Signing** (about $10 a month; identity validation required)
+1. In Azure, create a Trusted Signing account and a public-trust certificate profile, and an app registration
+   (client secret) with the *Trusted Signing Certificate Profile Signer* role on it.
+2. In GitHub, add secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, and **variables**
+   `WINDOWS_SIGNING` = `true`, `AZURE_ENDPOINT` (e.g. `https://eus.codesigning.azure.net`), `AZURE_SIGNING_ACCOUNT`,
+   `AZURE_CERTIFICATE_PROFILE`, `AZURE_PUBLISHER_NAME` (the name on the certificate).
+
+The Windows installer is then built and signed on a Windows runner. SmartScreen may still warn for the first
+downloads of a new certificate until it builds reputation.
+
 ## Project layout
 ```
 package.json   server.js

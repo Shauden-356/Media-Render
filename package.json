@@ -1,7 +1,7 @@
 {
   "name": "imadia",
   "productName": "Imadia",
-  "version": "7.0.0",
+  "version": "7.1.0",
   "description": "Find, zip and download images, audio and video from web pages.",
   "author": "Shauden-356",
   "private": true,
@@ -13,7 +13,7 @@
   "scripts": {
     "start": "node scripts/fetch-binaries.mjs && electron .",
     "server": "node server.js",
-    "dist:mac": "node scripts/fetch-binaries.mjs darwin arm64 && node scripts/fetch-binaries.mjs darwin x64 && electron-builder --mac --arm64 --x64",
+    "dist:mac": "node scripts/fetch-binaries.mjs darwin arm64 && node scripts/fetch-binaries.mjs darwin x64 && electron-builder --mac --arm64 --x64 -c.mac.identity=-",
     "dist:win": "node scripts/fetch-binaries.mjs win32 x64 && electron-builder --win --x64"
   },
   "dependencies": {
@@ -58,9 +58,10 @@
         "zip"
       ],
       "category": "public.app-category.utilities",
-      "identity": "-",
       "hardenedRuntime": false,
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
       "target": [
