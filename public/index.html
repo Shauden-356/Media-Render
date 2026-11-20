@@ -53,6 +53,34 @@
   .appbar img { width: 26px; height: 26px; border-radius: 6px; }
   .appbar .name { font-weight: 650; font-size: 15px; }
 
+  .appbar .spacer { flex: 1; }
+  .cookie-btn { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 13px; }
+  .cookie-btn:hover { border-color: var(--muted); }
+  .cookie-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .cookie-btn.on .dot { background: var(--ok); }
+
+  dialog.panel {
+    width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink);
+    box-shadow: 0 24px 64px rgb(0 0 0 / 0.3);
+  }
+  dialog.panel::backdrop { background: rgb(18 22 42 / 0.45); }
+  .panel form { padding: 20px 22px; display: grid; gap: 14px; }
+  .panel h2 { margin: 0; font-size: 17px; }
+  .panel p { margin: 0; color: var(--muted); }
+  .panel .now { padding: 10px 12px; border-radius: 8px; background: var(--sunken); color: var(--ink); }
+  .choice { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .choice > label { display: flex; align-items: center; gap: 8px; font-weight: 550; cursor: pointer; }
+  .choice input[type=radio] { margin: 0; accent-color: var(--strong); }
+  .choice .more { display: grid; gap: 8px; padding-left: 24px; }
+  .choice:not(:has(input[type=radio]:checked)) .more { display: none; }
+  .choice:has(input[type=radio]:checked) { border-color: var(--strong); }
+  .panel select, .panel textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  .panel textarea { min-height: 96px; resize: vertical; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .panel .small { font-size: 12px; color: var(--muted); }
+  .panel .error { color: var(--danger); }
+  .panel .buttons { display: flex; justify-content: flex-end; gap: 8px; }
+
   main { max-width: 980px; margin: 0 auto; padding: 24px 24px 120px; }
 
   /* Address row */
@@ -174,7 +202,47 @@
 <header class="appbar">
   <img src="/logo.svg" alt="">
   <span class="name">Imadia</span>
+  <span class="spacer"></span>
+  <button type="button" class="cookie-btn" id="cookieBtn" title="Sign-in cookies"><span class="dot"></span><span id="cookieLabel">Cookies</span></button>
 </header>
+
+<dialog class="panel" id="cookiePanel" aria-labelledby="cookieTitle">
+  <form method="dialog" id="cookieForm">
+    <h2 id="cookieTitle">Sign-in cookies</h2>
+    <p>Download as your logged-in self: for YouTube's "confirm you're not a bot", members-only or age-restricted videos, and sites that need an account. Cookies stay on this computer, and each one is only sent to the site it belongs to.</p>
+    <div class="now" id="cookieNow">Not using cookies.</div>
+
+    <div class="choice">
+      <label><input type="radio" name="csource" value="none" checked> Don't use cookies</label>
+    </div>
+    <div class="choice">
+      <label><input type="radio" name="csource" value="browser"> From a browser I'm signed in with</label>
+      <div class="more">
+        <select id="cookieBrowser" aria-label="Browser"></select>
+        <span class="small" id="browserTip">Read fresh each time, so it follows your sign-ins. On Windows, close Chrome, Edge or Brave first. On a Mac, allow the "Safe Storage" request if asked; Safari needs Full Disk Access.</span>
+      </div>
+    </div>
+    <div class="choice">
+      <label><input type="radio" name="csource" value="file"> From a cookies.txt or JSON file</label>
+      <div class="more">
+        <input type="file" id="cookieFile" accept=".txt,.json,text/plain,application/json">
+        <span class="small">Export it with an extension such as "Get cookies.txt LOCALLY" (Chrome, Edge) or "cookies.txt" (Firefox). Anyone with this file can sign in as you: keep it private.</span>
+      </div>
+    </div>
+    <div class="choice">
+      <label><input type="radio" name="csource" value="paste"> Paste cookies</label>
+      <div class="more">
+        <textarea id="cookieText" spellcheck="false" placeholder="Paste cookies.txt text or a JSON export"></textarea>
+      </div>
+    </div>
+
+    <p class="error" id="cookieError" role="alert"></p>
+    <div class="buttons">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="button" class="btn primary" id="cookieSave">Save</button>
+    </div>
+  </form>
+</dialog>
 <main>
   <form class="address" id="form">
     <input id="url" type="text" inputmode="url" autocomplete="off" spellcheck="false"
@@ -727,6 +795,99 @@
       renderDock();
     }
   });
+
+  // ---- Sign-in cookies ---------------------------------------------------------
+  const cookiePanel = $('#cookiePanel'), cookieErr = $('#cookieError');
+  const BROWSER_NAMES = { chrome: 'Chrome', firefox: 'Firefox', safari: 'Safari', edge: 'Microsoft Edge', brave: 'Brave', opera: 'Opera', vivaldi: 'Vivaldi', chromium: 'Chromium', whale: 'Whale' };
+  const browserName = (b) => BROWSER_NAMES[b] || b;
+
+  function showCookieStatus(st) {
+    const on = st.source !== 'none';
+    $('#cookieBtn').classList.toggle('on', on);
+    $('#cookieLabel').textContent = st.source === 'browser' ? `Cookies: ${browserName(st.browser)}` : st.source === 'file' ? 'Cookies: file' : 'Cookies';
+    const sites = st.domains && st.domains.length ? ` for ${st.domains.slice(0, 4).join(', ')}${st.domains.length > 4 ? '…' : ''}` : '';
+    const count = st.count ? `${st.count.toLocaleString()} cookies${sites}` : '';
+    $('#cookieNow').textContent = !on
+      ? 'Not using cookies.'
+      : st.source === 'browser'
+        ? `Using your ${browserName(st.browser)} sign-ins${count ? ` (${count} when last read)` : ''}.`
+        : `Using a saved cookie file${count ? ` (${count})` : ''}.`;
+    const sel = $('#cookieBrowser');
+    if (!sel.options.length) {
+      for (const b of st.browsers || []) {
+        const o = document.createElement('option');
+        o.value = b;
+        o.textContent = browserName(b);
+        sel.append(o);
+      }
+    }
+    if (st.browser) sel.value = st.browser;
+    const radio = document.querySelector(`input[name=csource][value="${st.source === 'file' ? 'file' : st.source}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  const loadCookieStatus = () => fetch('/api/cookies').then((r) => r.json()).then(showCookieStatus).catch(() => {});
+
+  function openCookiePanel() {
+    cookieErr.textContent = '';
+    $('#cookieFile').value = '';
+    $('#cookieText').value = '';
+    loadCookieStatus();
+    if (!cookiePanel.open) cookiePanel.showModal();
+  }
+  $('#cookieBtn').onclick = openCookiePanel;
+  // The Settings › Cookies… menu item opens it through the address (#cookies).
+  const fromHash = () => { if (location.hash === '#cookies') { openCookiePanel(); history.replaceState(null, '', location.pathname); } };
+  window.addEventListener('hashchange', fromHash);
+
+  $('#cookieSave').onclick = async () => {
+    const source = document.querySelector('input[name=csource]:checked')?.value || 'none';
+    const save = $('#cookieSave');
+    cookieErr.textContent = '';
+    let req;
+    try {
+      if (source === 'none') req = { method: 'DELETE' };
+      else if (source === 'browser') req = { method: 'PUT', body: { browser: $('#cookieBrowser').value } };
+      else {
+        let text = '';
+        if (source === 'file') {
+          const f = $('#cookieFile').files[0];
+          if (!f) throw new Error('Choose a cookies.txt or JSON file first.');
+          if (f.size > 10 * 1024 * 1024) throw new Error('That file is too large to be a cookie file.');
+          text = await f.text();
+        } else {
+          text = $('#cookieText').value;
+          if (!text.trim()) throw new Error('Paste the cookies first.');
+        }
+        req = { method: 'PUT', body: { text } };
+      }
+    } catch (err) {
+      cookieErr.textContent = err.message;
+      return;
+    }
+    save.disabled = true;
+    save.textContent = source === 'browser' ? 'Reading cookies…' : 'Saving…';
+    try {
+      const r = await fetch('/api/cookies', {
+        method: req.method,
+        headers: req.body ? { 'Content-Type': 'application/json' } : {},
+        body: req.body ? JSON.stringify(req.body) : undefined,
+      });
+      const st = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(st.error || `Could not save (HTTP ${r.status}).`);
+      showCookieStatus(st);
+      $('#cookieText').value = ''; // don't keep pasted cookies on screen
+      cookiePanel.close();
+      setStatus(st.source === 'none' ? 'Cookies turned off and the saved copy deleted.' : `Cookies saved: ${$('#cookieNow').textContent}`);
+    } catch (err) {
+      cookieErr.textContent = err.message;
+    } finally {
+      save.disabled = false;
+      save.textContent = 'Save';
+    }
+  };
+  cookiePanel.addEventListener('close', () => { $('#cookieText').value = ''; });
+  loadCookieStatus().then(fromHash);
 })();
 </script>
 </body>

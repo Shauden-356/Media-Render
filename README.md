@@ -41,11 +41,19 @@ It downloads the new version in the background, then offers **Restart now**; cho
 
 Versions before 6.2.0 have no updater, so update those by hand once.
 
-## YouTube sign-in
-Usually not needed from a home connection. If YouTube says *"Sign in to confirm you're not a bot"*, open the
-**YouTube** menu and pick the browser you're signed in to YouTube with, or choose an exported `cookies.txt` file.
-Close that browser before downloading so its cookies can be read. Chrome on Windows encrypts its cookies in
-a way yt-dlp often can't read, so use Firefox there if Chrome doesn't work.
+## Sign-in cookies
+Click **Cookies** (top right), or **Settings › Cookies…**, to download as your logged-in self: for YouTube's
+*"Sign in to confirm you're not a bot"*, members-only or age-restricted videos, and sites that need an account.
+- **From a browser:** Chrome, Firefox, Safari, Edge, Brave, Opera, Vivaldi, Chromium or Whale, read fresh each
+  time. On Windows, close Chrome/Edge/Brave first (they lock their cookies; Firefox works while open). On a Mac,
+  allow the "Safe Storage" request if asked; Safari needs Full Disk Access for Imadia.
+- **From a file or pasted:** `cookies.txt` (Netscape format, e.g. from the "Get cookies.txt LOCALLY" or
+  "cookies.txt" extensions) or a JSON export (Cookie-Editor and similar).
+
+Cookies are saved in the app's data folder (`cookies.txt`, readable by your account only) and used by yt-dlp, the
+HLS and direct-file methods, zips, previews and the page scanner. Each cookie is only sent to the site it belongs
+to (domain, path, https-only and expiry rules, as in a browser). FFmpeg's direct method gets none, since it can't
+limit cookies to their own site. The app never shows cookie values. **Don't use cookies** deletes the saved copy.
 
 ## How a video download works ("Auto" method)
 | You give it | Tries, in order |
@@ -189,7 +197,7 @@ desktop/hls_downloader.py   (older standalone Python tool, not part of the app)
 ## Security
 - The built-in server listens on this computer only (127.0.0.1) and answers only the app's own page: requests from
   other websites open in your browser are refused (Host, Origin and Sec-Fetch-Site checks), so they can't start
-  downloads with your YouTube cookies or read results. Its page runs only its own script (Content-Security-Policy).
+  downloads with your sign-in cookies or read results. Its page runs only its own script (Content-Security-Policy).
 - Downloads may only go to public internet addresses, never to your own network (checked again on every redirect).
 - The window is sandboxed (no Node.js access, no permissions such as camera or location); other links open in your browser.
 - Updates come only from this repo's GitHub releases over HTTPS.

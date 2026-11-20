@@ -8,6 +8,7 @@ import scan from './api/scan.js';
 import zip from './api/zip.js';
 import preview from './api/preview.js';
 import { startJob, jobStatus, jobFile, jobCancel } from './api/jobs.js';
+import { cookiesGet, cookiesPut, cookiesDelete } from './api/cookies.js';
 import { initJobs } from './lib/jobs.js';
 import { prepareScanner } from './lib/scanner.js';
 import { cfg } from './lib/config.js';
@@ -55,14 +56,19 @@ export async function startServer({ port = 0, host = '127.0.0.1' } = {}) {
     next();
   });
 
-  app.use(express.json({ limit: '1mb' }));
-
   const wrap = (handler) => (req, res) =>
     Promise.resolve(handler(req, res)).catch((err) => {
       console.error(err);
       if (!res.headersSent) res.status(500).json({ error: 'Something went wrong.' });
       else res.destroy();
     });
+
+  // Cookie files exported from a browser can be several MB (before the general 1 MB limit below).
+  app.get('/api/cookies', wrap(cookiesGet));
+  app.put('/api/cookies', express.json({ limit: '12mb' }), wrap(cookiesPut));
+  app.delete('/api/cookies', wrap(cookiesDelete));
+
+  app.use(express.json({ limit: '1mb' }));
 
   app.post('/api/scan', wrap(scan));
   app.post('/api/zip', wrap(zip));

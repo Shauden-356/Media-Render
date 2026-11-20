@@ -58,82 +58,31 @@ function setUpBinaries() {
   }
 }
 
-// Remembered choices (YouTube cookies).
-const settingsFile = path.join(app.getPath('userData'), 'settings.json');
-function loadSettings() {
+// The old YouTube menu kept its sign-in choice in settings.json; the Cookies panel replaces it.
+function oldCookieSetting() {
   try {
-    return JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+    return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'settings.json'), 'utf8'));
   } catch {
     return {};
   }
 }
-function saveSettings(s) {
-  fs.mkdirSync(path.dirname(settingsFile), { recursive: true });
-  fs.writeFileSync(settingsFile, JSON.stringify(s, null, 2));
-}
 
-let cfg;
 let shutdownJobs = () => {};
-let settings = {};
 let win;
 
-function applyCookies() {
-  cfg.ytdlpCookiesFromBrowser = settings.cookiesFromBrowser || '';
-  cfg.ytdlpCookies = settings.cookiesFile || '';
-}
-
-const BROWSERS = [
-  ['chrome', 'Chrome'],
-  ['firefox', 'Firefox'],
-  ['edge', 'Microsoft Edge'],
-  ['brave', 'Brave'],
-  ...(process.platform === 'darwin' ? [['safari', 'Safari']] : []),
-];
-
-function setCookies(next) {
-  settings = { ...settings, cookiesFromBrowser: '', cookiesFile: '', ...next };
-  saveSettings(settings);
-  applyCookies();
-  buildMenu();
-}
-
-async function chooseCookiesFile() {
-  const r = await dialog.showOpenDialog(win, {
-    title: 'Choose an exported cookies.txt',
-    filters: [{ name: 'cookies.txt', extensions: ['txt'] }],
-    properties: ['openFile'],
-  });
-  if (!r.canceled && r.filePaths[0]) setCookies({ cookiesFile: r.filePaths[0] });
-  else buildMenu(); // undo the radio tick
+// Opens the Cookies panel in the window (the page shows it when the address ends in #cookies).
+function openCookies() {
+  if (!win) return;
+  win.show();
+  win.webContents.executeJavaScript("location.hash = ''; location.hash = 'cookies';").catch(() => {});
 }
 
 function buildMenu() {
-  const none = !settings.cookiesFromBrowser && !settings.cookiesFile;
   const template = [
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
     { role: 'fileMenu' },
     { role: 'editMenu' },
-    {
-      label: 'YouTube',
-      submenu: [
-        { label: 'If YouTube asks you to sign in, pick the browser you are signed in with:', enabled: false },
-        { label: 'No sign-in', type: 'radio', checked: none, click: () => setCookies({}) },
-        ...BROWSERS.map(([id, label]) => ({
-          label: `Use my ${label} sign-in`,
-          type: 'radio',
-          checked: settings.cookiesFromBrowser === id,
-          click: () => setCookies({ cookiesFromBrowser: id }),
-        })),
-        {
-          label: settings.cookiesFile ? `Use cookies.txt (${path.basename(settings.cookiesFile)})` : 'Use a cookies.txt file…',
-          type: 'radio',
-          checked: !!settings.cookiesFile,
-          click: chooseCookiesFile,
-        },
-        { type: 'separator' },
-        { label: 'Close that browser first if it is open, or the sign-in cannot be read.', enabled: false },
-      ],
-    },
+    { label: 'Settings', submenu: [{ label: 'Cookies…', accelerator: 'CmdOrCtrl+Shift+K', click: openCookies }] },
     { role: 'viewMenu' },
     { role: 'windowMenu' },
     {
@@ -193,9 +142,9 @@ app.on('second-instance', () => {
 app.whenReady().then(async () => {
   try {
     setUpBinaries();
-    ({ cfg } = await import('../lib/config.js'));
-    settings = loadSettings();
-    applyCookies();
+    process.env.DATA_DIR = app.getPath('userData'); // saved settings such as cookies
+    const { migrateOldSetting } = await import('../lib/cookies.js');
+    await migrateOldSetting(oldCookieSetting());
     buildMenu();
     ({ shutdownJobs } = await import('../lib/jobs.js'));
     const { startServer } = await import('../server.js');
