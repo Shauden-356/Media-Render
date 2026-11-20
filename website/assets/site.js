@@ -8,10 +8,25 @@
     macArm: { file: 'Imadia-mac-arm64.dmg', label: 'Download for Mac (Apple silicon)', system: 'a Mac with Apple silicon' },
     macIntel: { file: 'Imadia-mac-x64.dmg', label: 'Download for Mac (Intel)', system: 'a Mac with an Intel processor' },
     win: { file: 'Imadia-win-x64.exe', label: 'Download for Windows', system: 'Windows' },
+    android: { file: 'Imadia-android-arm64.apk', label: 'Download for Android', system: 'Android phones and tablets' },
+    androidAny: { file: 'Imadia-android.apk', label: 'Download for Android', system: 'any Android device' },
   };
   const ALLOWED = new Set(Object.values(FILES).map((f) => f.file));
   const downloadUrl = (file) => `https://github.com/${REPO}/releases/latest/download/${encodeURIComponent(file)}`;
   const $ = (id) => document.getElementById(id);
+  let androidMissing = false; // the latest release has no Android app yet
+
+  // Until a release includes the Android app, its buttons say so instead of leading nowhere.
+  function markAndroidMissing() {
+    if (!androidMissing) return;
+    for (const b of document.querySelectorAll('button[data-file^="Imadia-android"]')) {
+      b.disabled = true;
+      b.dataset.file = '';
+      const size = b.querySelector('.size');
+      if (size) size.textContent = 'Coming soon';
+      if (b.id === 'primary') b.textContent = 'Android version coming soon';
+    }
+  }
 
   // ---- Which computer is this? ------------------------------------------------
 
@@ -39,7 +54,12 @@
     const ua = navigator.userAgent || '';
     const platform = navigator.userAgentData?.platform || navigator.platform || '';
     const touchMac = /Mac/i.test(platform) && navigator.maxTouchPoints > 1; // iPad asking for the desktop site
-    if (/Android|iPhone|iPad|iPod/i.test(ua) || touchMac) return { key: null, why: 'Imadia runs on Mac and Windows computers. Open this page on one of them to download it.' };
+    if (/iPhone|iPad|iPod/i.test(ua) || touchMac) return { key: null, why: "Apple doesn't allow apps like Imadia on iPhone and iPad. It's available for Android, Mac and Windows." };
+    if (/Android/i.test(ua)) {
+      // 64-bit ARM covers nearly every phone; anything else gets the version that runs everywhere.
+      const arch = /aarch64|arm64|armv8/i.test(ua + platform) || !/armv7|i686|x86/i.test(ua + platform) ? 'android' : 'androidAny';
+      return { key: arch, sure: true };
+    }
     if (/Win/i.test(platform) || /Windows/i.test(ua)) return { key: 'win', sure: true };
     if (/Mac/i.test(platform) || /Macintosh|Mac OS X/i.test(ua)) return macKind();
     if (/Linux|X11|CrOS/i.test(platform + ua)) return { key: null, why: 'Imadia is not available for Linux or ChromeOS yet. The Mac and Windows downloads are below.' };
@@ -96,6 +116,7 @@
     note.textContent = d.sure
       ? `For ${f.system}. Other systems are listed below.`
       : `For ${f.system}. On an Intel Mac, choose "Mac with Intel" below.`;
+    markAndroidMissing(); // in case the release check finished first
   });
 
   // Latest version and sizes (only text from GitHub's answer is shown, never markup).
@@ -110,6 +131,11 @@
       const version = rel.tag_name.replace(/^v/, '').replace(/[^0-9A-Za-z.\-]/g, '').slice(0, 20);
       const date = new Date(rel.published_at);
       $('meta').textContent = `Version ${version}` + (isNaN(date) ? '' : ` · released ${date.toLocaleDateString(undefined, { dateStyle: 'long' })}`);
+      const names = new Set((Array.isArray(rel.assets) ? rel.assets : []).map((a) => a.name));
+      if (![...names].some((n) => n.startsWith('Imadia-android'))) {
+        androidMissing = true;
+        markAndroidMissing();
+      }
       for (const a of Array.isArray(rel.assets) ? rel.assets : []) {
         if (!ALLOWED.has(a.name) || !Number.isFinite(a.size)) continue;
         const el = document.querySelector(`[data-size="${CSS.escape(a.name)}"]`);

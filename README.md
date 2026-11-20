@@ -152,6 +152,24 @@ VS Code sets that variable, and it makes Electron behave like plain Node.
 | ALLOW_TRANSCODE | 1 | Allow re-encoding as a last resort |
 | CHROME_PATH | *(auto)* | Use this browser for page scans |
 
+## Android app
+`android/` is a native Kotlin app (Jetpack Compose) with the same downloader: yt-dlp, FFmpeg and Python bundled by
+the [youtubedl-android](https://github.com/JunkFood02/youtubedl-android) library, plus QuickJS for YouTube's checks.
+Paste a link or **Share** one to Imadia from YouTube, Chrome or any app; pick MP4/MKV/MP3/M4A and quality; files go to
+**Downloads › Imadia**. Sign-in cookies (key icon) are imported from a cookies.txt/JSON file or pasted, and kept in the
+app's private storage. yt-dlp updates itself daily; the app shows a banner when a new release is out. Android 10+.
+
+It is not on Google Play (which bans video downloaders): the release workflow attaches `Imadia-android-arm64.apk`
+(nearly all phones), `Imadia-android-arm32.apk`, `Imadia-android-x86_64.apk` and `Imadia-android.apk` (all processors),
+and the website offers them to Android visitors. The version number comes from `package.json`.
+
+**Signing key (once):** Android only installs updates signed with the same key, so run
+`scripts/make-android-key.sh`, add the four `ANDROID_KEYSTORE_*`/`ANDROID_KEY_*` secrets it prints, and **back up the
+key file and password**. Without the secrets, releases skip the Android app.
+
+**Building locally:** Java 17 and the Android SDK, then `cd android && ./gradlew assembleDebug`
+(APKs in `android/app/build/outputs/apk/`).
+
 ## Code signing (so macOS and Windows trust the app)
 Unsigned apps make macOS say it "can't check the app for malicious software" and Windows show "Windows protected
 your PC". Signing removes those warnings. It needs certificates only the publisher can get; once they are added
@@ -182,6 +200,7 @@ downloads of a new certificate until it builds reputation.
 ```
 package.json   server.js
 website/    download site for Vercel (index, terms, privacy, vercel.json)
+android/    the Android app (Kotlin)
 docs/       index.html (old GitHub Pages address, forwards to the website)
 build/      app icons (icon.icns for Mac, icon.ico for Windows)
 .github/workflows/release.yml (builds installers when a v* tag is pushed)
